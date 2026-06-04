@@ -1,0 +1,175 @@
+// ============================================================================
+// Val Quaresma — Schema Prisma
+// ============================================================================
+// Banco: PostgreSQL (Railway)
+// ORM: Prisma
+//
+// Estratégia:
+// - Category: tabela própria → cliente cria/edita pelo admin
+// - Product: dados principais + flags de gestão (active, featured)
+// - ProductImage: galeria 1:N (imagem principal vive no Product)
+// - Variant: PREPARADO mas opcional → não bloqueia o MVP
+// - User: base para auth do admin (NextAuth ou solução própria)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CATEGORIAS
+// ============================================================================
+// Dinâmicas — o cliente gerencia pelo /admin/categories
+// `slug` é gerado a partir do nome (ex: "Joias Finas" → "joias-finas")
+// e usado nas URLs públicas: /categoria/joias-finas
+//
+// `order` permite o cliente reordenar a exibição no site (drag-and-drop futuro)
+// ============================================================================
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  image       String?  // URL da imagem de capa da categoria (opcional)
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+
+  products    Product[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([active, order])
+  @@map("categories")
+}
+
+// ============================================================================
+// PRODUTOS
+// ============================================================================
+// `price` em Decimal → precisão monetária (NUNCA use Float para dinheiro)
+// `mainImage` é a imagem principal (obrigatória, mostrada nos cards)
+// `images` é a galeria secundária (relação 1:N — ProductImage)
+//
+// Flags de negócio:
+// - `active`: cliente pode esconder sem deletar (mantém histórico)
+// - `featured`: aparece no Hero/Vitrine Principal
+//
+// `slug` único → URL amigável: /produto/vestido-midi-floral
+// ============================================================================
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String   @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+
+  mainImage   String   // URL da imagem principal
+  images      ProductImage[]  // galeria secundária
+
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  // Flags de gestão
+  active      Boolean  @default(true)
+  featured    Boolean  @default(false)
+
+  // Estoque básico (opcional — pode evoluir)
+  stock       Int?     @default(0)
+
+  // PREPARADO PARA O FUTURO — relação opcional com variações
+  variants    Variant[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Índices estratégicos para performance nas queries do site
+  @@index([slug])
+  @@index([active, featured])
+  @@index([categoryId, active])
+  @@map("products")
+}
+
+// ============================================================================
+// IMAGENS DA GALERIA
+// ============================================================================
+// Tabela separada permite N imagens por produto sem limite no schema.
+// `order` controla a sequência exibida no carrossel da página do produto.
+// `alt` é OBRIGATÓRIO no front (acessibilidade + SEO de imagens)
+// ============================================================================
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String  @default("")
+  order     Int     @default(0)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, order])
+  @@map("product_images")
+}
+
+// ============================================================================
+// VARIAÇÕES (preparado para o futuro)
+// ============================================================================
+// Hoje: pode ficar vazio. Produto funciona só com `Product.price`.
+// Amanhã: quando precisar de P/M/G com preços diferentes, é só popular.
+//
+// Padrão: se o produto TEM variants, o preço da variant prevalece
+// sobre o Product.price (lógica no front/back, não no schema).
+//
+// `attributes` em JSON dá flexibilidade total:
+// { "tamanho": "M", "cor": "Preto" }
+// ============================================================================
+model Variant {
+  id          String   @id @default(cuid())
+  sku         String?  @unique  // código interno opcional
+  name        String   // ex: "P - Preto", "Único"
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  attributes  Json?    // { tamanho: "M", cor: "Dourado" }
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId, active])
+  @@map("variants")
+}
+
+// ============================================================================
+// USUÁRIO ADMIN
+// ============================================================================
+// Estrutura mínima para autenticação do painel.
+// `role` permite expandir depois (ex: dono vs. funcionário).
+// Senha sempre armazenada como HASH (bcrypt/argon2) — NUNCA texto puro.
+// ============================================================================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // hash bcrypt
+  role      Role     @default(ADMIN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}

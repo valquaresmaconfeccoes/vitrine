@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Paleta Val Quaresma — Preto + Dourado (luxo clássico)
+ *
+ * Tokens centralizados em CSS variables para:
+ * - Facilitar tema dark/light no futuro
+ * - Manter consistência visual em todo o site
+ * - Permitir uso direto: var(--color-gold) ou via Tailwind: bg-gold
+ */
+@layer base {
+  :root {
+    /* Cores principais */
+    --color-noir: 10 10 10;          /* #0A0A0A — preto profundo */
+    --color-gold: 198 161 91;        /* #C6A15B — dourado fosco/elegante */
+    --color-gold-light: 224 196 138; /* #E0C48A — dourado claro (hover) */
+    --color-gold-dark: 158 124 62;   /* #9E7C3E — dourado escuro (acentos) */
+
+    /* Neutros de apoio */
+    --color-cream: 250 247 242;      /* #FAF7F2 — fundo suave alternativo */
+    --color-warm-gray: 115 110 102;  /* #736E66 — texto secundário */
+
+    /* Estado */
+    --color-success: 22 163 74;
+    --color-error: 220 38 38;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings sempre usam Playfair por padrão */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+/**
+ * Utilitários customizados reutilizáveis
+ */
+@layer components {
+  .container-padded {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3
+           bg-gold text-noir font-medium tracking-wide
+           transition-colors duration-300
+           hover:bg-gold-light focus:outline-none focus:ring-2
+           focus:ring-gold focus:ring-offset-2;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-6 py-3
+           border border-gold text-gold font-medium tracking-wide
+           transition-colors duration-300
+           hover:bg-gold hover:text-noir focus:outline-none focus:ring-2
+           focus:ring-gold focus:ring-offset-2;
+  }
+}
