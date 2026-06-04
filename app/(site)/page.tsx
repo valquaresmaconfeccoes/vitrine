@@ -7,18 +7,16 @@ import LocationSection from "@/components/site/LocationSection";
 /**
  * Home Page — app/(site)/page.tsx
  *
- * Server Component puro. Cada seção busca seus próprios dados do banco
- * (CategoryGrid e FeaturedProducts são async).
+ * `force-dynamic` impede o Next.js de pré-renderizar esta página
+ * durante o build. Sem isso, ele tenta buscar dados do banco em
+ * build-time, quando o banco interno do Railway ainda não está
+ * acessível — causando o erro "Can't reach database server".
  *
- * Ordem estratégica:
- * 1. Hero          → impacto visual + CTA imediato
- * 2. Categorias    → navegação rápida por interesse
- * 3. Destaques     → produtos selecionados (gera desejo)
- * 4. Sobre         → credibilidade (loja física, história)
- * 5. Localização   → SEO local + ponte físico/digital
- *
- * Cada bloco é independente — fácil de reordenar ou substituir no futuro.
+ * Com force-dynamic, a página é renderizada em cada request (SSR),
+ * garantindo que o banco já está online quando os dados são buscados.
  */
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <>
