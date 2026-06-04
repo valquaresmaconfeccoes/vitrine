@@ -1,0 +1,163 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+
+interface SidebarProps {
+  user: {
+    name?: string | null;
+    email?: string | null;
+  };
+}
+
+/**
+ * Sidebar do Painel Admin
+ *
+ * Responsiva:
+ * - Desktop (>= lg): fixa à esquerda, sempre visível
+ * - Mobile: drawer que abre por botão hamburguer
+ *
+ * Active state:
+ * - Link atual destacado em dourado
+ * - usePathname() para saber onde estamos
+ *
+ * Logout: signOut() do next-auth/react limpa o cookie e redireciona
+ */
+
+const navigation = [
+  {
+    name: "Dashboard",
+    href: "/admin/dashboard",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Produtos",
+    href: "/admin/produtos",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Categorias",
+    href: "/admin/categorias",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z" />
+      </svg>
+    ),
+  },
+];
+
+export default function AdminSidebar({ user }: SidebarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  return (
+    <>
+      {/* ============ BOTÃO HAMBURGUER MOBILE ============ */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-30 p-2 bg-noir text-gold rounded shadow-lg"
+        aria-label="Abrir menu"
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+        </svg>
+      </button>
+
+      {/* ============ OVERLAY MOBILE ============ */}
+      <div
+        className={`
+          lg:hidden fixed inset-0 z-40 bg-black/50
+          transition-opacity duration-300
+          ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
+        `}
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* ============ SIDEBAR ============ */}
+      <aside
+        className={`
+          fixed top-0 left-0 z-50 h-full w-64
+          bg-noir text-white
+          flex flex-col
+          transition-transform duration-300
+          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
+      >
+        {/* Logo */}
+        <div className="p-6 border-b border-gold/20">
+          <Link href="/admin/dashboard" className="block">
+            <h1 className="font-serif text-2xl text-gold tracking-wider">
+              Val Quaresma
+            </h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-gold-light/60 mt-1">
+              Painel Administrativo
+            </p>
+          </Link>
+        </div>
+
+        {/* Navegação */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-1">
+            {navigation.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-4 py-3 rounded
+                      text-sm transition-colors duration-200
+                      ${
+                        isActive
+                          ? "bg-gold/10 text-gold border-l-2 border-gold"
+                          : "text-white/70 hover:bg-white/5 hover:text-white"
+                      }
+                    `}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Usuário + Logout */}
+        <div className="p-4 border-t border-gold/20">
+          <div className="px-4 py-3 mb-2">
+            <p className="text-sm text-white truncate">{user.name}</p>
+            <p className="text-xs text-white/50 truncate">{user.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="
+              w-full flex items-center gap-3 px-4 py-3 rounded
+              text-sm text-white/70 hover:bg-white/5 hover:text-red-300
+              transition-colors duration-200
+            "
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+            Sair
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
