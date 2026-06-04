@@ -1,45 +1,146 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import AdminSidebar from "@/components/admin/Sidebar";
+import type { Metadata } from "next";
+import { Inter, Playfair_Display } from "next/font/google";
+import Script from "next/script";
+import { AuthProvider } from "@/components/AuthProvider";
+import "./globals.css";
 
 /**
- * Layout do Painel Admin
+ * ROOT LAYOUT — app/layout.tsx
  *
- * Verificação dupla de segurança:
- * 1. Middleware já protege as rotas /admin/* (redireciona se não logado)
- * 2. Este layout faz uma segunda verificação como camada extra
- *
- * Por que verificar de novo aqui:
- * - Defesa em profundidade — se o middleware falhar, ainda há proteção
- * - Disponibiliza o `session` para todos os componentes filhos
- * - Permite saudação personalizada ("Olá, Val") no Header
- *
- * Layout visual:
- * - Sidebar fixa à esquerda (256px em desktop, drawer em mobile)
- * - Conteúdo principal ocupa o resto da tela
- * - Sem Header/Footer do site público (route group isola tudo)
+ * Este é o layout raiz que envolve TODA a aplicação (site + admin + login).
+ * Responsável por:
+ * - Fontes otimizadas (Playfair + Inter)
+ * - Metadata SEO global
+ * - Schema.org LocalBusiness
+ * - AuthProvider (contexto de sessão para Client Components)
+ * - Tag <html> e <body>
  */
-export default async function AdminLayout({
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-playfair",
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://valquaresma.com.br"),
+  title: {
+    default: "Val Quaresma | Moda Feminina Autoral",
+    template: "%s | Val Quaresma",
+  },
+  description:
+    "Val Quaresma — moda feminina com peças exclusivas, atendimento personalizado e a elegância que você merece. Confira nossa coleção.",
+  keywords: [
+    "Val Quaresma",
+    "moda feminina",
+    "roupas femininas",
+    "loja de roupas",
+    "moda autoral",
+    "vestidos",
+    "looks femininos",
+  ],
+  authors: [{ name: "Val Quaresma" }],
+  creator: "Val Quaresma",
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: "https://valquaresma.com.br",
+    siteName: "Val Quaresma",
+    title: "Val Quaresma | Moda Feminina Autoral",
+    description:
+      "Moda feminina com peças exclusivas e atendimento personalizado. Visite nossa loja física ou compre pelo WhatsApp.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Val Quaresma — Moda Feminina",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Val Quaresma | Moda Feminina Autoral",
+    description: "Moda feminina com peças exclusivas e atendimento personalizado.",
+    images: ["/og-image.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "/",
+  },
+};
+
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": "ClothingStore",
+  name: "Val Quaresma",
+  image: "https://valquaresma.com.br/og-image.jpg",
+  "@id": "https://valquaresma.com.br",
+  url: "https://valquaresma.com.br",
+  telephone: "+559191862273",
+  priceRange: "$$",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "Rua Exemplo, 123",
+    addressLocality: "Sua Cidade",
+    addressRegion: "PA",
+    postalCode: "00000-000",
+    addressCountry: "BR",
+  },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: -1.4558,
+    longitude: -48.5039,
+  },
+  openingHoursSpecification: [
+    {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens: "09:00",
+      closes: "18:00",
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: "Saturday",
+      opens: "09:00",
+      closes: "13:00",
+    },
+  ],
+  sameAs: ["https://www.instagram.com/valquaresma"],
+};
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
   return (
-    <div className="min-h-screen bg-cream flex">
-      <AdminSidebar user={session.user} />
-
-      {/* Área de conteúdo principal */}
-      <main className="flex-1 lg:ml-64">
-        <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          {children}
-        </div>
-      </main>
-    </div>
+    <html lang="pt-BR" className={`${inter.variable} ${playfair.variable}`}>
+      <body className="font-sans bg-white text-noir antialiased">
+        <AuthProvider>{children}</AuthProvider>
+        <Script
+          id="schema-local-business"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(localBusinessSchema),
+          }}
+        />
+      </body>
+    </html>
   );
 }
