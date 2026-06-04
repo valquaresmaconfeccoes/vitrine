@@ -1,62 +1,138 @@
-import { Suspense } from "react";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 /**
- * Página de Login — /login
+ * Dashboard — /admin/dashboard
  *
- * Server Component que renderiza o LoginForm (Client Component).
+ * Tela inicial do painel. Mostra:
+ * - Saudação personalizada
+ * - Cards com totais (produtos, categorias, ativos, destaques)
+ * - Atalhos rápidos para ações comuns
  *
- * Por que dividir em dois:
- * - A página em si pode ser estática (Server Component)
- * - O formulário precisa de useState + signIn (Client Component)
- * - Separação melhora performance e bundle size
- *
- * Suspense é necessário porque o LoginForm usa useSearchParams()
- * (Next 15 exige Suspense boundary para hooks de search params)
+ * Server Component — busca dados direto do banco.
+ * force-dynamic para evitar erro de build (mesmo motivo da Home).
  */
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const session = await auth();
+
+  // Busca todos os contadores em paralelo (Promise.all = mais rápido)
+  const [totalProducts, activeProducts, featuredProducts, totalCategories] =
+    await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { active: true } }),
+      prisma.product.count({ where: { featured: true, active: true } }),
+      prisma.category.count({ where: { active: true } }),
+    ]);
+
+  const stats = [
+    {
+      label: "Produtos Totais",
+      value: totalProducts,
+      hint: `${activeProducts} ativos`,
+    },
+    {
+      label: "Produtos Ativos",
+      value: activeProducts,
+      hint: "Visíveis no site",
+    },
+    {
+      label: "Em Destaque",
+      value: featuredProducts,
+      hint: "Aparecem na Home",
+    },
+    {
+      label: "Categorias",
+      value: totalCategories,
+      hint: "Categorias ativas",
+    },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-noir px-4">
-      <div className="w-full max-w-md">
-        {/* ============ LOGO ============ */}
-        <div className="text-center mb-12">
-          <h1 className="font-serif text-4xl text-gold tracking-wider">
-            Val Quaresma
-          </h1>
-          <p className="text-xs uppercase tracking-[0.3em] text-gold-light/60 mt-2">
-            Painel Administrativo
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto">
+      {/* ============ CABEÇALHO ============ */}
+      <header className="mb-10">
+        <p className="text-xs uppercase tracking-[0.3em] text-gold-dark mb-2">
+          Bem-vinda
+        </p>
+        <h1 className="font-serif text-4xl text-noir">
+          Olá, <span className="italic">{session?.user?.name?.split(" ")[0]}</span>
+        </h1>
+        <p className="text-warm-gray mt-2">
+          Aqui você gerencia tudo que aparece no site da Val Quaresma.
+        </p>
+      </header>
 
-        {/* ============ FORMULÁRIO ============ */}
-        <div className="bg-noir border border-gold/20 p-8 sm:p-10">
-          <Suspense fallback={<LoginFormFallback />}>
-            <LoginForm />
-          </Suspense>
-        </div>
-
-        {/* ============ LINK PARA O SITE ============ */}
-        <div className="text-center mt-8">
-          <a
-            href="/"
-            className="text-xs uppercase tracking-widest text-white/40 hover:text-gold transition-colors duration-300"
+      {/* ============ CARDS DE ESTATÍSTICAS ============ */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-white p-6 border border-gold/10"
           >
-            ← Voltar para o site
-          </a>
+            <p className="text-xs uppercase tracking-widest text-gold-dark mb-3">
+              {stat.label}
+            </p>
+            <p className="font-serif text-4xl text-noir mb-1">{stat.value}</p>
+            <p className="text-xs text-warm-gray">{stat.hint}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ============ AÇÕES RÁPIDAS ============ */}
+      <section>
+        <h2 className="font-serif text-2xl text-noir mb-6">Ações Rápidas</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <ActionCard
+            title="Gerenciar Produtos"
+            description="Adicionar, editar ou desativar produtos da vitrine"
+            href="/admin/produtos"
+          />
+          <ActionCard
+            title="Gerenciar Categorias"
+            description="Organizar as categorias da loja"
+            href="/admin/categorias"
+          />
         </div>
-      </div>
+      </section>
+
+      {/* ============ AVISO TEMPORÁRIO ============ */}
+      <section className="mt-12 p-6 bg-gold/5 border border-gold/20">
+        <h3 className="font-serif text-lg text-noir mb-2">
+          🚧 Funcionalidades em construção
+        </h3>
+        <p className="text-sm text-warm-gray leading-relaxed">
+          O CRUD completo de produtos e categorias está sendo desenvolvido.
+          Por enquanto, você pode visualizar as estatísticas e navegar pelo
+          painel.
+        </p>
+      </section>
     </div>
   );
 }
 
 /**
- * Fallback simples enquanto o LoginForm carrega
+ * Componente interno reutilizável para cards de ação
  */
-function LoginFormFallback() {
+function ActionCard({
+  title,
+  description,
+  href,
+}: {
+  title: string;
+  description: string;
+  href: string;
+}) {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-10 bg-white/5 rounded" />
-      <div className="h-10 bg-white/5 rounded" />
-      <div className="h-12 bg-gold/30 rounded" />
-    </div>
+    <a
+      href={href}
+      className="group bg-white p-6 border border-gold/10 hover:border-gold transition-colors duration-300"
+    >
+      <h3 className="font-serif text-xl text-noir group-hover:text-gold-dark transition-colors duration-300 mb-2">
+        {title} →
+      </h3>
+      <p className="text-sm text-warm-gray">{description}</p>
+    </a>
   );
 }
