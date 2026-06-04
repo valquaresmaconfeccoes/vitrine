@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import LoginForm from "./LoginForm";
 
 /**
  * Página de Login — /login
