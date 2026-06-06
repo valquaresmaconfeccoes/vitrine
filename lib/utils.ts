@@ -3,10 +3,8 @@
  */
 
 /**
- * Formata um valor numérico (ou Decimal do Prisma) em moeda BRL.
- *
- * Aceita number OU string (Prisma Decimal vem como string em JSON)
- * para evitar erros de tipagem ao serializar do Server Component.
+ * Formata um valor numérico em moeda BRL.
+ * Aceita number OU string (Prisma Decimal vem como string em JSON).
  *
  * Exemplo: 289.9 → "R$ 289,90"
  */
@@ -21,8 +19,27 @@ export function formatPrice(value: number | string): string {
 
 /**
  * Gera um link do WhatsApp com mensagem pré-preenchida.
- * Útil em CTAs de produtos: "quero saber mais sobre X".
  */
 export function whatsappLink(phone: string, message: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Converte um nome em slug URL-friendly.
+ *
+ * Exemplos:
+ * "Joias Finas" → "joias-finas"
+ * "Vestido Midi & Floral" → "vestido-midi-floral"
+ * "Ação especial!" → "acao-especial"
+ */
+export function slugify(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
