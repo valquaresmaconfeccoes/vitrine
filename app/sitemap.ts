@@ -1,10 +1,6 @@
 import { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 
-// Força geração dinâmica — o sitemap consulta o banco em runtime,
-// não durante o build (onde o banco Railway não está acessível).
-export const dynamic = "force-dynamic";
-
 /**
  * sitemap.ts — Geração dinâmica do sitemap.xml
  *
