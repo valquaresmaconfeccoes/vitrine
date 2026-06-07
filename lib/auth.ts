@@ -85,12 +85,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * Aqui adicionamos campos customizados (id, role) ao token.
      */
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
-    },
+  if (user) {
+    token.id = user.id as string;
+    token.role = (user as { role: string }).role;
+  }
+  return token;
+},
 
     /**
      * session() roda quando o cliente chama `auth()` ou `useSession()`.
