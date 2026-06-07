@@ -1,6 +1,10 @@
 import { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 
+// Força geração dinâmica — o sitemap consulta o banco em runtime,
+// não durante o build (onde o banco Railway não está acessível).
+export const dynamic = "force-dynamic";
+
 /**
  * sitemap.ts — Geração dinâmica do sitemap.xml
  *
@@ -20,25 +24,7 @@ import { prisma } from "@/lib/db";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://valquaresma.up.railway.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Busca todos os produtos ativos com data de atualização
-  const products = await prisma.product.findMany({
-    where: { active: true },
-    select: {
-      slug: true,
-      updatedAt: true,
-    },
-  });
-
-  // Busca categorias ativas
-  const categories = await prisma.category.findMany({
-    where: { active: true },
-    select: {
-      slug: true,
-      updatedAt: true,
-    },
-  });
-
-  // Páginas estáticas
+  // Páginas estáticas — sempre presentes, independente do banco
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: BASE_URL,
@@ -64,23 +50,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.5,
     },
+    {
+      url: `${BASE_URL}/politica-privacidade`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
 
-  // Páginas dinâmicas — produtos
-  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `${BASE_URL}/produtos/${product.slug}`,
-    lastModified: product.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.8,
-  }));
+  try {
+    // Em runtime o banco está acessível — inclui produtos e categorias
+    // Em build time no Railway o banco NÃO está acessível — o catch retorna só as estáticas
+    const [products, categories] = await Promise.all([
+      prisma.product.findMany({
+        where: { active: true },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.category.findMany({
+        where: { active: true },
+        select: { slug: true, updatedAt: true },
+      }),
+    ]);
 
-  // Páginas dinâmicas — categorias (filtro de listagem)
-  const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${BASE_URL}/produtos?categoria=${cat.slug}`,
-    lastModified: cat.updatedAt,
-    changeFrequency: "weekly" as const,
-    priority: 0.7,
-  }));
+    const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+      url: `${BASE_URL}/produtos/${product.slug}`,
+      lastModified: product.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
 
-  return [...staticPages, ...productPages, ...categoryPages];
+    const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
+      url: `${BASE_URL}/produtos?categoria=${cat.slug}`,
+      lastModified: cat.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+
+    return [...staticPages, ...productPages, ...categoryPages];
+  } catch {
+    // Banco indisponível (build time) — retorna só as páginas estáticas
+    return staticPages;
+  }
 }
