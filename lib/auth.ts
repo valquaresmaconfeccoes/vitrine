@@ -84,10 +84,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * jwt() roda toda vez que um JWT é criado ou atualizado.
      * Aqui adicionamos campos customizados (id, role) ao token.
      */
-        async jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
-        token.id = user.id as string;
-        token.role = (user as { role: string }).role;
+        token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },

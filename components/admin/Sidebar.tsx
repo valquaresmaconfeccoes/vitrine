@@ -6,25 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 interface SidebarProps {
-  user: {
-    name?: string | null;
-    email?: string | null;
-  };
+  user: { name?: string | null; email?: string | null };
 }
-
-/**
- * Sidebar do Painel Admin
- *
- * Responsiva:
- * - Desktop (>= lg): fixa à esquerda, sempre visível
- * - Mobile: drawer que abre por botão hamburguer
- *
- * Active state:
- * - Link atual destacado em dourado
- * - usePathname() para saber onde estamos
- *
- * Logout: signOut() do next-auth/react limpa o cookie e redireciona
- */
 
 const navigation = [
   {
@@ -33,6 +16,15 @@ const navigation = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Hero / Banner",
+    href: "/admin/hero",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
       </svg>
     ),
   },
@@ -62,7 +54,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
 
   return (
     <>
-      {/* ============ BOTÃO HAMBURGUER MOBILE ============ */}
+      {/* Hamburguer mobile */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -74,40 +66,24 @@ export default function AdminSidebar({ user }: SidebarProps) {
         </svg>
       </button>
 
-      {/* ============ OVERLAY MOBILE ============ */}
+      {/* Overlay mobile */}
       <div
-        className={`
-          lg:hidden fixed inset-0 z-40 bg-black/50
-          transition-opacity duration-300
-          ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
-        `}
+        className={`lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsOpen(false)}
         aria-hidden="true"
       />
 
-      {/* ============ SIDEBAR ============ */}
-      <aside
-        className={`
-          fixed top-0 left-0 z-50 h-full w-64
-          bg-noir text-white
-          flex flex-col
-          transition-transform duration-300
-          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
-      >
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-noir text-white flex flex-col transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         {/* Logo */}
         <div className="p-6 border-b border-gold/20">
           <Link href="/admin/dashboard" className="block">
-            <h1 className="font-serif text-2xl text-gold tracking-wider">
-              Val Quaresma
-            </h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-gold-light/60 mt-1">
-              Painel Administrativo
-            </p>
+            <h1 className="font-serif text-2xl text-gold tracking-wider">Val Quaresma</h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-gold-light/60 mt-1">Painel Administrativo</p>
           </Link>
         </div>
 
-        {/* Navegação */}
+        {/* Nav */}
         <nav className="flex-1 p-4">
           <ul className="space-y-1">
             {navigation.map((item) => {
@@ -117,15 +93,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
                   <Link
                     href={item.href}
                     onClick={() => setIsOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 rounded
-                      text-sm transition-colors duration-200
-                      ${
-                        isActive
-                          ? "bg-gold/10 text-gold border-l-2 border-gold"
-                          : "text-white/70 hover:bg-white/5 hover:text-white"
-                      }
-                    `}
+                    className={`flex items-center gap-3 px-4 py-3 rounded text-sm transition-colors duration-200 ${isActive ? "bg-gold/10 text-gold border-l-2 border-gold" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
                   >
                     {item.icon}
                     {item.name}
@@ -145,11 +113,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="
-              w-full flex items-center gap-3 px-4 py-3 rounded
-              text-sm text-white/70 hover:bg-white/5 hover:text-red-300
-              transition-colors duration-200
-            "
+            className="w-full flex items-center gap-3 px-4 py-3 rounded text-sm text-white/70 hover:bg-white/5 hover:text-red-300 transition-colors duration-200"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />

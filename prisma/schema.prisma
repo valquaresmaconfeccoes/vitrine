@@ -1,15 +1,5 @@
 // ============================================================================
-// Val Quaresma — Schema Prisma
-// ============================================================================
-// Banco: PostgreSQL (Railway)
-// ORM: Prisma
-//
-// Estratégia:
-// - Category: tabela própria → cliente cria/edita pelo admin
-// - Product: dados principais + flags de gestão (active, featured)
-// - ProductImage: galeria 1:N (imagem principal vive no Product)
-// - Variant: PREPARADO mas opcional → não bloqueia o MVP
-// - User: base para auth do admin (NextAuth ou solução própria)
+// Val Quaresma — Schema Prisma (v2 — com HeroSlide)
 // ============================================================================
 
 generator client {
@@ -24,18 +14,12 @@ datasource db {
 // ============================================================================
 // CATEGORIAS
 // ============================================================================
-// Dinâmicas — o cliente gerencia pelo /admin/categories
-// `slug` é gerado a partir do nome (ex: "Joias Finas" → "joias-finas")
-// e usado nas URLs públicas: /categoria/joias-finas
-//
-// `order` permite o cliente reordenar a exibição no site (drag-and-drop futuro)
-// ============================================================================
 model Category {
   id          String   @id @default(cuid())
   name        String   @unique
   slug        String   @unique
   description String?
-  image       String?  // URL da imagem de capa da categoria (opcional)
+  image       String?
   order       Int      @default(0)
   active      Boolean  @default(true)
 
@@ -52,16 +36,6 @@ model Category {
 // ============================================================================
 // PRODUTOS
 // ============================================================================
-// `price` em Decimal → precisão monetária (NUNCA use Float para dinheiro)
-// `mainImage` é a imagem principal (obrigatória, mostrada nos cards)
-// `images` é a galeria secundária (relação 1:N — ProductImage)
-//
-// Flags de negócio:
-// - `active`: cliente pode esconder sem deletar (mantém histórico)
-// - `featured`: aparece no Hero/Vitrine Principal
-//
-// `slug` único → URL amigável: /produto/vestido-midi-floral
-// ============================================================================
 model Product {
   id          String   @id @default(cuid())
   name        String
@@ -69,26 +43,20 @@ model Product {
   description String   @db.Text
   price       Decimal  @db.Decimal(10, 2)
 
-  mainImage   String   // URL da imagem principal
-  images      ProductImage[]  // galeria secundária
+  mainImage   String
+  images      ProductImage[]
 
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  // Flags de gestão
   active      Boolean  @default(true)
   featured    Boolean  @default(false)
-
-  // Estoque básico (opcional — pode evoluir)
   stock       Int?     @default(0)
-
-  // PREPARADO PARA O FUTURO — relação opcional com variações
   variants    Variant[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Índices estratégicos para performance nas queries do site
   @@index([slug])
   @@index([active, featured])
   @@index([categoryId, active])
@@ -97,10 +65,6 @@ model Product {
 
 // ============================================================================
 // IMAGENS DA GALERIA
-// ============================================================================
-// Tabela separada permite N imagens por produto sem limite no schema.
-// `order` controla a sequência exibida no carrossel da página do produto.
-// `alt` é OBRIGATÓRIO no front (acessibilidade + SEO de imagens)
 // ============================================================================
 model ProductImage {
   id        String  @id @default(cuid())
@@ -118,24 +82,15 @@ model ProductImage {
 }
 
 // ============================================================================
-// VARIAÇÕES (preparado para o futuro)
-// ============================================================================
-// Hoje: pode ficar vazio. Produto funciona só com `Product.price`.
-// Amanhã: quando precisar de P/M/G com preços diferentes, é só popular.
-//
-// Padrão: se o produto TEM variants, o preço da variant prevalece
-// sobre o Product.price (lógica no front/back, não no schema).
-//
-// `attributes` em JSON dá flexibilidade total:
-// { "tamanho": "M", "cor": "Preto" }
+// VARIAÇÕES
 // ============================================================================
 model Variant {
   id          String   @id @default(cuid())
-  sku         String?  @unique  // código interno opcional
-  name        String   // ex: "P - Preto", "Único"
+  sku         String?  @unique
+  name        String
   price       Decimal  @db.Decimal(10, 2)
   stock       Int      @default(0)
-  attributes  Json?    // { tamanho: "M", cor: "Dourado" }
+  attributes  Json?
 
   productId   String
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -150,17 +105,72 @@ model Variant {
 }
 
 // ============================================================================
-// USUÁRIO ADMIN
+// HERO SLIDES
 // ============================================================================
-// Estrutura mínima para autenticação do painel.
-// `role` permite expandir depois (ex: dono vs. funcionário).
-// Senha sempre armazenada como HASH (bcrypt/argon2) — NUNCA texto puro.
+// Sistema de banner dinâmico com agendamento e configurações avançadas.
+//
+// Lógica de exibição (em ordem de prioridade):
+// 1. Slide deve estar `active: true`
+// 2. Se tiver `startsAt`, deve ser >= agora
+// 3. Se tiver `endsAt`, deve ser <= agora
+// 4. Ordenados por `priority` (menor número = maior prioridade)
+//
+// Slide "permanente": sem startsAt/endsAt → sempre ativo (quando active=true)
+// Slide "promocional": com startsAt/endsAt → aparece só no período definido
+// ============================================================================
+model HeroSlide {
+  id          String   @id @default(cuid())
+
+  // Conteúdo visual
+  image       String                    // URL Cloudinary (obrigatória)
+  title       String?                   // Título sobreposto (opcional)
+  subtitle    String?                   // Subtítulo sobreposto (opcional)
+
+  // CTA (call to action)
+  buttonText  String?                   // Texto do botão (opcional)
+  buttonUrl   String?                   // Link do botão (qualquer URL)
+  buttonTarget HeroButtonTarget @default(SELF) // _self ou _blank
+
+  // Aparência
+  textColor   HeroTextColor @default(LIGHT)   // claro ou escuro
+
+  // Comportamento do carrossel
+  duration    Int      @default(5)      // segundos por slide (3-15)
+
+  // Agendamento
+  startsAt    DateTime?                 // null = sem restrição de início
+  endsAt      DateTime?                 // null = sem restrição de fim
+
+  // Controle
+  priority    Int      @default(0)      // menor = aparece primeiro
+  active      Boolean  @default(true)   // toggle manual rápido
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, priority])
+  @@index([startsAt, endsAt])
+  @@map("hero_slides")
+}
+
+enum HeroButtonTarget {
+  SELF   // mesma aba
+  BLANK  // nova aba
+}
+
+enum HeroTextColor {
+  LIGHT  // texto branco (para fotos escuras)
+  DARK   // texto preto (para fotos claras)
+}
+
+// ============================================================================
+// USUÁRIO ADMIN
 // ============================================================================
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  password  String   // hash bcrypt
+  password  String
   role      Role     @default(ADMIN)
 
   createdAt DateTime @default(now())
