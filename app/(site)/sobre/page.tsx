@@ -43,12 +43,20 @@ export default function SobrePage() {
         {/* Bloco 1 — Quem somos */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100">
+            {/*
+              📸 IMAGEM DA LOJA — Como trocar:
+              1. Suba a foto real no Cloudinary (pasta val-quaresma)
+              2. Copie a URL gerada
+              3. Substitua o src abaixo pela URL nova
+              Tamanho ideal: 800x800px (quadrada)
+            */}
             <Image
               src="https://res.cloudinary.com/dytv4thpa/image/upload/v1/val-quaresma/sobre-loja.jpg"
               alt="Fachada da loja Val Quaresma"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
+              unoptimized
             />
           </div>
 

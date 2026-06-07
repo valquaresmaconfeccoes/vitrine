@@ -17,6 +17,7 @@ export default async function EditProductPage({
       where: { id },
       include: {
         images: { orderBy: { order: "asc" } },
+        variants: { orderBy: { createdAt: "asc" } },
       },
     }),
     prisma.category.findMany({
@@ -51,6 +52,14 @@ export default async function EditProductPage({
           images: product.images.map((img) => ({
             url: img.url,
             order: img.order,
+          })),
+          variants: product.variants.map((v) => ({
+            id: v.id,
+            name: v.name,
+            price: v.price.toString(),
+            stock: v.stock,
+            sku: v.sku || "",
+            active: v.active,
           })),
         }}
       />

@@ -38,10 +38,10 @@ export default function ContatoPage() {
     telephone: "+55-91-91862273",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "Rua a definir",
+      streetAddress: "Passagem Pinheiro, nº 323",
       addressLocality: "Belém",
       addressRegion: "PA",
-      postalCode: "66000-000",
+      postalCode: "66079-720",
       addressCountry: "BR",
     },
     openingHoursSpecification: [
@@ -97,9 +97,9 @@ export default function ContatoPage() {
                   <h2 className="text-xl font-bold text-neutral-900">Endereço</h2>
                 </div>
                 <p className="text-neutral-700 leading-relaxed ml-13">
-                  Rua a definir<br />
-                  Belém — PA<br />
-                  CEP: 66000-000
+                  Passagem Pinheiro, nº 323<br />
+                  Terra Firme — Belém, PA<br />
+                  CEP: 66079-720
                 </p>
               </div>
 
@@ -163,7 +163,7 @@ export default function ContatoPage() {
             <div className="space-y-4">
               <div className="aspect-square sm:aspect-[4/3] lg:aspect-square w-full rounded-2xl overflow-hidden bg-neutral-100">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d127487.63607917498!2d-48.5495!3d-1.4558!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x92a48c1281cf1d37%3A0xce5da40ea7b1370c!2sBel%C3%A9m%2C%20PA!5e0!3m2!1spt-BR!2sbr!4v1700000000000"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1993.7!2d-48.45346344962605!3d-1.4626843272657697!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMcKwMjcnNDUuNyJTIDQ4wrAyNycxMi41Ilc!5e0!3m2!1spt-BR!2sbr"
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}

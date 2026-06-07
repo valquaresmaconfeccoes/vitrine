@@ -28,7 +28,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://valquaresma.com.br"),
+  metadataBase: new URL("https://valquaresma.up.railway.app"),
   title: {
     default: "Val Quaresma | Moda Feminina Autoral",
     template: "%s | Val Quaresma",
@@ -49,25 +49,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    url: "https://valquaresma.com.br",
+    url: "https://valquaresma.up.railway.app",
     siteName: "Val Quaresma",
     title: "Val Quaresma | Moda Feminina Autoral",
     description:
       "Moda feminina com peças exclusivas e atendimento personalizado. Visite nossa loja física ou compre pelo WhatsApp.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Val Quaresma — Moda Feminina",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Val Quaresma | Moda Feminina Autoral",
     description: "Moda feminina com peças exclusivas e atendimento personalizado.",
-    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,
@@ -88,23 +79,23 @@ const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": "ClothingStore",
   name: "Val Quaresma",
-  image: "https://valquaresma.com.br/og-image.jpg",
-  "@id": "https://valquaresma.com.br",
-  url: "https://valquaresma.com.br",
+  image: "https://valquaresma.up.railway.app/opengraph-image",
+  "@id": "https://valquaresma.up.railway.app",
+  url: "https://valquaresma.up.railway.app",
   telephone: "+559191862273",
   priceRange: "$$",
   address: {
     "@type": "PostalAddress",
-    streetAddress: "Rua Exemplo, 123",
-    addressLocality: "Sua Cidade",
+    streetAddress: "Passagem Pinheiro, nº 323",
+    addressLocality: "Belém",
     addressRegion: "PA",
-    postalCode: "00000-000",
+    postalCode: "66079-720",
     addressCountry: "BR",
   },
   geo: {
     "@type": "GeoCoordinates",
-    latitude: -1.4558,
-    longitude: -48.5039,
+    latitude: -1.4626843272657697,
+    longitude: -48.45346344962605,
   },
   openingHoursSpecification: [
     {
@@ -120,7 +111,7 @@ const localBusinessSchema = {
       closes: "13:00",
     },
   ],
-  sameAs: ["https://www.instagram.com/valquaresma"],
+  sameAs: ["https://www.instagram.com/valdilene_quaresma"],
 };
 
 export default function RootLayout({

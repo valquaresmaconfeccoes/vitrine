@@ -3,9 +3,9 @@ import Link from "next/link";
 const navigation = {
   shop: [
     { name: "Todos os Produtos", href: "/produtos" },
-    { name: "Vestidos", href: "/categoria/vestidos" },
-    { name: "Joias", href: "/categoria/joias" },
-    { name: "Acessórios", href: "/categoria/acessorios" },
+    { name: "Vestidos", href: "/produtos?categoria=vestidos" },
+    { name: "Joias", href: "/produtos?categoria=joias" },
+    { name: "Acessórios", href: "/produtos?categoria=acessorios" },
   ],
   about: [
     { name: "Sobre a Val Quaresma", href: "/sobre" },
@@ -72,9 +72,9 @@ export default function Footer() {
           <div className="col-span-2 lg:col-span-1">
             <h4 className="font-serif text-base sm:text-lg text-gold mb-3 sm:mb-5">Contato</h4>
             <address className="not-italic text-xs sm:text-sm leading-relaxed text-white/70 mb-3">
-              <p className="mb-1">Rua Exemplo, 123</p>
-              <p className="mb-1">Sua Cidade — PA</p>
-              <p>CEP: 00000-000</p>
+              <p className="mb-1">Passagem Pinheiro, nº 323</p>
+              <p className="mb-1">Terra Firme — Belém, PA</p>
+              <p>CEP: 66079-720</p>
             </address>
             <a href="tel:+559191862273" className="block text-xs sm:text-sm text-white/70 hover:text-gold transition-colors mb-3 sm:mb-4">
               (91) 9186-2273
@@ -86,7 +86,7 @@ export default function Footer() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <a
-                href="https://www.instagram.com/valquaresma"
+                href="https://www.instagram.com/valdilene_quaresma"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"

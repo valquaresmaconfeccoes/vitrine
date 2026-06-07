@@ -55,6 +55,22 @@ function parseProductForm(formData: FormData) {
   // Imagens da galeria (múltiplos valores)
   const galleryImages = formData.getAll("galleryImages") as string[];
 
+  // Variantes (JSON serializado)
+  const variantsRaw = formData.get("variants") as string;
+  let variants: {
+    id?: string;
+    name: string;
+    price: string;
+    stock: number;
+    sku: string;
+    active: boolean;
+  }[] = [];
+  try {
+    variants = variantsRaw ? JSON.parse(variantsRaw) : [];
+  } catch {
+    variants = [];
+  }
+
   return {
     name,
     description,
@@ -65,6 +81,7 @@ function parseProductForm(formData: FormData) {
     active,
     featured,
     galleryImages: galleryImages.filter((url) => url.trim() !== ""),
+    variants: variants.filter((v) => v.name.trim() !== ""),
   };
 }
 
@@ -105,6 +122,16 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
             order: index,
           })),
         },
+        // Cria as variantes
+        variants: {
+          create: data.variants.map((v) => ({
+            name: v.name,
+            price: parseFloat(v.price.replace(",", ".")) || data.price,
+            stock: v.stock || 0,
+            sku: v.sku || null,
+            active: v.active,
+          })),
+        },
       },
     });
 
@@ -137,10 +164,11 @@ export async function updateProduct(
   try {
     const slug = await generateUniqueSlug(data.name, id);
 
-    // Estratégia para galeria: deletar todas e recriar
+    // Estratégia para galeria e variantes: deletar todas e recriar
     // (mais simples que sincronizar — performance OK para poucos itens)
     await prisma.$transaction([
       prisma.productImage.deleteMany({ where: { productId: id } }),
+      prisma.variant.deleteMany({ where: { productId: id } }),
       prisma.product.update({
         where: { id },
         data: {
@@ -158,6 +186,15 @@ export async function updateProduct(
               url,
               alt: data.name,
               order: index,
+            })),
+          },
+          variants: {
+            create: data.variants.map((v) => ({
+              name: v.name,
+              price: parseFloat(v.price.replace(",", ".")) || data.price,
+              stock: v.stock || 0,
+              sku: v.sku || null,
+              active: v.active,
             })),
           },
         },

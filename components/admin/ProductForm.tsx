@@ -10,6 +10,7 @@ import {
   Button,
 } from "@/components/admin/FormFields";
 import ImageUpload from "@/components/admin/ImageUpload";
+import VariantForm, { VariantData } from "@/components/admin/VariantForm";
 import { createProduct, updateProduct } from "@/app/admin/produtos/actions";
 
 interface Category {
@@ -30,6 +31,7 @@ interface ProductFormProps {
     active: boolean;
     featured: boolean;
     images: { url: string; order: number }[];
+    variants: VariantData[];
   };
 }
 
@@ -54,6 +56,9 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
   const [mainImage, setMainImage] = useState<string>(product?.mainImage ?? "");
   const [galleryImages, setGalleryImages] = useState<string[]>(
     product?.images.sort((a, b) => a.order - b.order).map((img) => img.url) ?? []
+  );
+  const [variants, setVariants] = useState<VariantData[]>(
+    product?.variants ?? []
   );
 
   function addGallerySlot() {
@@ -82,6 +87,10 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
     galleryImages
       .filter((url) => url.trim() !== "")
       .forEach((url) => formData.append("galleryImages", url));
+
+    // Serializa variantes como JSON
+    formData.delete("variants");
+    formData.set("variants", JSON.stringify(variants));
 
     startTransition(async () => {
       const result = isEditing
@@ -223,6 +232,19 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
         >
           + Adicionar imagem à galeria
         </button>
+      </section>
+
+      {/* ============ SEÇÃO: VARIANTES ============ */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">
+          Variantes (opcional)
+        </h2>
+        <p className="text-sm text-warm-gray">
+          Adicione variações como tamanho, cor ou modelo. Cada variante pode ter
+          seu próprio preço e estoque.
+        </p>
+
+        <VariantForm variants={variants} onChange={setVariants} />
       </section>
 
       {/* ============ ERRO ============ */}
