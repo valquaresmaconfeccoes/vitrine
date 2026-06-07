@@ -1,0 +1,237 @@
+import { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { prisma } from "@/lib/db";
+import ImageGallery from "@/components/produtos/ImageGallery";
+import VariantSelector from "@/components/produtos/VariantSelector";
+import WhatsAppProductButton from "@/components/produtos/WhatsAppProductButton";
+
+/**
+ * /produtos/[slug] — Página de detalhe do produto
+ *
+ * Essa é a página que VENDE. O cliente chega aqui pelo Google,
+ * Instagram, ou link no WhatsApp e precisa:
+ * 1. Ver o produto claramente (galeria de imagens)
+ * 2. Entender o que está comprando (descrição + variantes)
+ * 3. Agir (botão WhatsApp com mensagem pré-preenchida)
+ *
+ * SEO:
+ * - generateMetadata dinâmico (título, descrição, og:image por produto)
+ * - Schema.org Product (structured data) para rich snippets no Google
+ *
+ * Performance:
+ * - force-dynamic pra garantir dados frescos do banco
+ * - Imagem principal com priority (LCP)
+ */
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: Promise<{ slug: string }>;
+}
+
+// SEO — Metadata dinâmica por produto
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+
+  const product = await prisma.product.findUnique({
+    where: { slug, active: true },
+    select: { name: true, description: true, mainImage: true },
+  });
+
+  if (!product) {
+    return { title: "Produto não encontrado | Val Quaresma" };
+  }
+
+  return {
+    title: `${product.name} | Val Quaresma`,
+    description: product.description.substring(0, 160),
+    openGraph: {
+      title: `${product.name} | Val Quaresma`,
+      description: product.description.substring(0, 160),
+      images: [{ url: product.mainImage, width: 800, height: 1067 }],
+      type: "website",
+    },
+  };
+}
+
+export default async function ProductDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+
+  const product = await prisma.product.findUnique({
+    where: { slug, active: true },
+    include: {
+      category: { select: { name: true, slug: true } },
+      images: { orderBy: { order: "asc" } },
+      variants: {
+        where: { active: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!product) {
+    notFound();
+  }
+
+  const formattedPrice = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(product.price));
+
+  const hasVariants = product.variants.length > 0;
+
+  // Schema.org structured data — ajuda o Google a entender que é um produto
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    image: product.mainImage,
+    offers: {
+      "@type": "Offer",
+      price: Number(product.price),
+      priceCurrency: "BRL",
+      availability: "https://schema.org/InStock",
+      seller: {
+        "@type": "Organization",
+        name: "Val Quaresma",
+      },
+    },
+  };
+
+  return (
+    <>
+      {/* Structured Data (invisível — só pro Google) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      <section className="min-h-screen bg-white">
+        {/* Breadcrumb */}
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <ol className="flex items-center gap-2 text-sm text-neutral-500">
+            <li>
+              <Link href="/" className="hover:text-amber-600 transition-colors">
+                Início
+              </Link>
+            </li>
+            <li>/</li>
+            <li>
+              <Link href="/produtos" className="hover:text-amber-600 transition-colors">
+                Produtos
+              </Link>
+            </li>
+            <li>/</li>
+            <li>
+              <Link
+                href={`/produtos?categoria=${product.category.slug}`}
+                className="hover:text-amber-600 transition-colors"
+              >
+                {product.category.name}
+              </Link>
+            </li>
+            <li>/</li>
+            <li className="text-neutral-900 font-medium truncate max-w-[200px]">
+              {product.name}
+            </li>
+          </ol>
+        </nav>
+
+        {/* Conteúdo principal — 2 colunas no desktop */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            {/* Coluna esquerda — Galeria */}
+            <ImageGallery
+              mainImage={product.mainImage}
+              productName={product.name}
+              images={product.images.map((img) => ({
+                url: img.url,
+                alt: img.alt || product.name,
+              }))}
+            />
+
+            {/* Coluna direita — Informações */}
+            <div className="flex flex-col">
+              {/* Categoria */}
+              <Link
+                href={`/produtos?categoria=${product.category.slug}`}
+                className="text-sm uppercase tracking-wider text-amber-600 font-medium hover:text-amber-700 transition-colors w-fit"
+              >
+                {product.category.name}
+              </Link>
+
+              {/* Nome do produto */}
+              <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-neutral-900 font-serif">
+                {product.name}
+              </h1>
+
+              {/* Preço ou seletor de variantes */}
+              <div className="mt-6">
+                {hasVariants ? (
+                  <VariantSelector
+                    variants={product.variants.map((v) => ({
+                      id: v.id,
+                      name: v.name,
+                      price: v.price.toString(),
+                      stock: v.stock,
+                      active: v.active,
+                      attributes: v.attributes as Record<string, string> | null,
+                    }))}
+                    basePrice={product.price.toString()}
+                  />
+                ) : (
+                  <p className="text-2xl sm:text-3xl font-bold text-neutral-900">
+                    {formattedPrice}
+                  </p>
+                )}
+              </div>
+
+              {/* Descrição */}
+              <div className="mt-8">
+                <h2 className="text-sm font-medium text-neutral-600 uppercase tracking-wider mb-3">
+                  Descrição
+                </h2>
+                <div className="prose prose-neutral prose-sm sm:prose-base max-w-none">
+                  {product.description.split("\n").map((paragraph, i) => (
+                    <p key={i} className="text-neutral-700 leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Botão WhatsApp — CTA principal */}
+              <div className="mt-8 sticky bottom-4 lg:static">
+                <WhatsAppProductButton
+                  productName={product.name}
+                  productSlug={product.slug}
+                />
+              </div>
+
+              {/* Info extra */}
+              <div className="mt-8 pt-6 border-t border-neutral-200 space-y-3">
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                    <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  Disponível na loja física
+                </div>
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                    <rect width="20" height="16" x="2" y="4" rx="2" />
+                    <path d="M6 8h.001M10 8h.001" />
+                    <path d="M2 12h20" />
+                  </svg>
+                  Aceitamos cartão, Pix e dinheiro
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}

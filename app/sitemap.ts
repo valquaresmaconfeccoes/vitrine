@@ -1,0 +1,86 @@
+import { MetadataRoute } from "next";
+import { prisma } from "@/lib/db";
+
+/**
+ * sitemap.ts — Geração dinâmica do sitemap.xml
+ *
+ * Acessível em: https://valquaresma.up.railway.app/sitemap.xml
+ *
+ * O que faz:
+ * - Lista todas as páginas estáticas (home, sobre, contato, produtos)
+ * - Busca todos os produtos ativos no banco e inclui suas URLs
+ * - Atualiza automaticamente quando novos produtos são cadastrados
+ *
+ * SEO:
+ * - priority: 1.0 (home) > 0.9 (listagem) > 0.8 (detalhe) > 0.5 (institucionais)
+ * - changeFrequency: indica pro Google com que frequência revisitar
+ * - lastModified: usa a data de atualização real do banco
+ */
+
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://valquaresma.up.railway.app";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Busca todos os produtos ativos com data de atualização
+  const products = await prisma.product.findMany({
+    where: { active: true },
+    select: {
+      slug: true,
+      updatedAt: true,
+    },
+  });
+
+  // Busca categorias ativas
+  const categories = await prisma.category.findMany({
+    where: { active: true },
+    select: {
+      slug: true,
+      updatedAt: true,
+    },
+  });
+
+  // Páginas estáticas
+  const staticPages: MetadataRoute.Sitemap = [
+    {
+      url: BASE_URL,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1.0,
+    },
+    {
+      url: `${BASE_URL}/produtos`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/sobre`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${BASE_URL}/contato`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+  ];
+
+  // Páginas dinâmicas — produtos
+  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+    url: `${BASE_URL}/produtos/${product.slug}`,
+    lastModified: product.updatedAt,
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
+
+  // Páginas dinâmicas — categorias (filtro de listagem)
+  const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
+    url: `${BASE_URL}/produtos?categoria=${cat.slug}`,
+    lastModified: cat.updatedAt,
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
+
+  return [...staticPages, ...productPages, ...categoryPages];
+}
