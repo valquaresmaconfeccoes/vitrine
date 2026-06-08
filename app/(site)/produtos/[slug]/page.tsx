@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import ImageGallery from "@/components/produtos/ImageGallery";
 import VariantSelector from "@/components/produtos/VariantSelector";
 import WhatsAppProductButton from "@/components/produtos/WhatsAppProductButton";
+import AddToCartButton from "@/components/produtos/AddToCartButton";
 
 /**
  * /produtos/[slug] — Página de detalhe do produto
@@ -202,8 +203,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Botão WhatsApp — CTA principal */}
-              <div className="mt-8 sticky bottom-4 lg:static">
+              {/* Botões de ação — CTA principal */}
+              <div className="mt-8 sticky bottom-4 lg:static space-y-3">
+                <AddToCartButton productId={product.id} />
                 <WhatsAppProductButton
                   productName={product.name}
                   productSlug={product.slug}

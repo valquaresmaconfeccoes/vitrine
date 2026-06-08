@@ -1,5 +1,5 @@
 // ============================================================================
-// Val Quaresma — Schema Prisma (v2 — com HeroSlide)
+// Val Quaresma — Schema Prisma (v3 — E-commerce)
 // ============================================================================
 
 generator client {
@@ -54,6 +54,15 @@ model Product {
   stock       Int?     @default(0)
   variants    Variant[]
 
+  // Dados para cálculo de frete (Correios)
+  weight      Int      @default(300)   // peso em gramas
+  width       Int      @default(15)    // largura em cm
+  height      Int      @default(10)    // altura em cm
+  length      Int      @default(20)    // comprimento em cm
+
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -97,6 +106,9 @@ model Variant {
 
   active      Boolean  @default(true)
 
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -107,46 +119,23 @@ model Variant {
 // ============================================================================
 // HERO SLIDES
 // ============================================================================
-// Sistema de banner dinâmico com agendamento e configurações avançadas.
-//
-// Lógica de exibição (em ordem de prioridade):
-// 1. Slide deve estar `active: true`
-// 2. Se tiver `startsAt`, deve ser >= agora
-// 3. Se tiver `endsAt`, deve ser <= agora
-// 4. Ordenados por `priority` (menor número = maior prioridade)
-//
-// Slide "permanente": sem startsAt/endsAt → sempre ativo (quando active=true)
-// Slide "promocional": com startsAt/endsAt → aparece só no período definido
-// ============================================================================
 model HeroSlide {
-  id          String   @id @default(cuid())
+  id           String   @id @default(cuid())
+  image        String
+  title        String?
+  subtitle     String?
+  buttonText   String?
+  buttonUrl    String?
+  buttonTarget HeroButtonTarget @default(SELF)
+  textColor    HeroTextColor @default(LIGHT)
+  duration     Int      @default(5)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  priority     Int      @default(0)
+  active       Boolean  @default(true)
 
-  // Conteúdo visual
-  image       String                    // URL Cloudinary (obrigatória)
-  title       String?                   // Título sobreposto (opcional)
-  subtitle    String?                   // Subtítulo sobreposto (opcional)
-
-  // CTA (call to action)
-  buttonText  String?                   // Texto do botão (opcional)
-  buttonUrl   String?                   // Link do botão (qualquer URL)
-  buttonTarget HeroButtonTarget @default(SELF) // _self ou _blank
-
-  // Aparência
-  textColor   HeroTextColor @default(LIGHT)   // claro ou escuro
-
-  // Comportamento do carrossel
-  duration    Int      @default(5)      // segundos por slide (3-15)
-
-  // Agendamento
-  startsAt    DateTime?                 // null = sem restrição de início
-  endsAt      DateTime?                 // null = sem restrição de fim
-
-  // Controle
-  priority    Int      @default(0)      // menor = aparece primeiro
-  active      Boolean  @default(true)   // toggle manual rápido
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([active, priority])
   @@index([startsAt, endsAt])
@@ -154,13 +143,13 @@ model HeroSlide {
 }
 
 enum HeroButtonTarget {
-  SELF   // mesma aba
-  BLANK  // nova aba
+  SELF
+  BLANK
 }
 
 enum HeroTextColor {
-  LIGHT  // texto branco (para fotos escuras)
-  DARK   // texto preto (para fotos claras)
+  LIGHT
+  DARK
 }
 
 // ============================================================================
@@ -182,4 +171,168 @@ model User {
 enum Role {
   ADMIN
   STAFF
+}
+
+// ============================================================================
+// CLIENTE (e-commerce)
+// ============================================================================
+model Customer {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  password  String
+  cpf       String?  @unique
+
+  addresses Address[]
+  cart      Cart?
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@map("customers")
+}
+
+// ============================================================================
+// ENDEREÇO
+// ============================================================================
+model Address {
+  id           String   @id @default(cuid())
+  label        String   @default("Casa")  // "Casa", "Trabalho", etc.
+  recipientName String
+  cep          String
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String   @db.Char(2)
+
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  orders       Order[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+// ============================================================================
+// CARRINHO
+// ============================================================================
+model Cart {
+  id         String     @id @default(cuid())
+
+  customerId String     @unique
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  items      CartItem[]
+
+  updatedAt  DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// ============================================================================
+// PEDIDO
+// ============================================================================
+model Order {
+  id               String      @id @default(cuid())
+  orderNumber      String      @unique  // VQ-20260608-001
+  status           OrderStatus @default(PENDING)
+
+  // Valores
+  subtotal         Decimal     @db.Decimal(10, 2)
+  shippingCost     Decimal     @db.Decimal(10, 2) @default(0)
+  total            Decimal     @db.Decimal(10, 2)
+
+  // Frete
+  shippingMethod   String?     // "PAC", "SEDEX", "RETIRADA"
+  shippingDeadline String?     // "5 a 8 dias úteis"
+  trackingCode     String?
+
+  // Pagamento (Mercado Pago)
+  mpOrderId        String?     @unique
+  mpPaymentId      String?
+  paymentMethod    String?     // "pix", "credit_card"
+  paymentStatus    String?     // "approved", "pending", etc.
+  paidAt           DateTime?
+
+  // Relacionamentos
+  customerId       String
+  customer         Customer    @relation(fields: [customerId], references: [id])
+
+  addressId        String?
+  address          Address?    @relation(fields: [addressId], references: [id])
+
+  items            OrderItem[]
+  notes            String?     @db.Text
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderNumber])
+  @@index([mpOrderId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  quantity     Int
+  unitPrice    Decimal  @db.Decimal(10, 2) // preço no momento da compra
+
+  // Snapshot do produto (caso seja editado/deletado depois)
+  productName  String
+  productImage String
+  variantName  String?
+
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+
+  variantId    String?
+  variant      Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING           // Aguardando pagamento
+  PAYMENT_APPROVED  // Pagamento confirmado
+  PROCESSING        // Em preparação
+  SHIPPED           // Enviado
+  DELIVERED         // Entregue
+  CANCELLED         // Cancelado
+  REFUNDED          // Reembolsado
 }

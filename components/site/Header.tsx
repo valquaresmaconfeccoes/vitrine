@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useCart } from "@/contexts/CartContext";
 
 const navigation = [
   { name: "Início", href: "/" },
@@ -26,6 +27,7 @@ const navigation = [
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { customer, cartCount } = useCart();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -87,20 +89,24 @@ export default function Header() {
               ))}
             </nav>
 
-            {/* CTA desktop */}
-            <a
-              href="https://wa.me/559191862273?text=Olá! Vim pelo site e gostaria de mais informações."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="
-                hidden lg:inline-flex items-center gap-2
-                px-4 py-2 border border-gold text-gold
-                text-[10px] uppercase tracking-widest
-                hover:bg-gold hover:text-noir transition-colors duration-300
-              "
-            >
-              Fale Conosco
-            </a>
+            {/* CTA desktop + carrinho + conta */}
+            <div className="hidden lg:flex items-center gap-4">
+              <Link href={customer ? "/conta/login" : "/conta/login"}
+                className="text-[10px] uppercase tracking-widest text-white/80 hover:text-gold transition-colors">
+                {customer ? customer.name.split(" ")[0] : "Entrar"}
+              </Link>
+
+              <Link href="/carrinho" className="relative text-gold hover:text-gold-light transition-colors p-1">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gold text-noir text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+            </div>
 
             {/* Hamburguer mobile */}
             <button
@@ -154,16 +160,21 @@ export default function Header() {
             </ul>
           </nav>
 
-          <div className="container-padded pb-8">
-            <a
-              href="https://wa.me/559191862273?text=Olá! Vim pelo site e gostaria de mais informações."
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="container-padded pb-8 space-y-3">
+            <Link
+              href="/carrinho"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center justify-center gap-2 w-full py-3.5 border border-gold text-gold text-xs uppercase tracking-widest font-medium hover:bg-gold hover:text-noir transition-colors duration-300"
+            >
+              Carrinho {cartCount > 0 && `(${cartCount})`}
+            </Link>
+            <Link
+              href={customer ? "/conta/login" : "/conta/login"}
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center justify-center gap-2 w-full py-3.5 bg-gold text-noir text-xs uppercase tracking-widest font-medium hover:bg-gold-light transition-colors duration-300"
             >
-              Falar no WhatsApp
-            </a>
+              {customer ? `Minha Conta` : "Entrar / Cadastrar"}
+            </Link>
           </div>
         </div>
       </div>
