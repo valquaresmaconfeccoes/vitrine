@@ -1,40 +1,75 @@
 /**
- * correios.ts — Cálculo de frete pelos Correios
+ * correios.ts — Cálculo de frete por região
  *
- * Usa o web service público dos Correios para calcular
- * preço e prazo de PAC e SEDEX.
+ * O webservice antigo dos Correios (CalcPrecoPrazo.aspx) foi
+ * descontinuado em 2024. A nova API exige contrato corporativo.
  *
- * Fallback: se a API estiver fora, retorna preços estimados
- * baseados em tabela fixa por região.
+ * Solução pragmática: tabela própria por região (UF) baseada
+ * em preços médios de mercado dos Correios + retirada na loja.
  *
- * CEP de origem: 66079-720 (Belém, PA)
+ * Origem: Belém, PA (CEP 66079-720)
+ *
+ * Para evoluir: integrar Melhor Envio (https://melhorenvio.com.br)
+ * que oferece API gratuita até 100 cotações/mês com cadastro.
  */
 
 const CEP_ORIGEM = "66079720";
 
-// Códigos dos serviços dos Correios
-const SERVICOS = {
-  PAC: "04510",
-  SEDEX: "04014",
-};
-
 export interface ShippingOption {
-  service: string;     // "PAC", "SEDEX", "RETIRADA"
-  name: string;        // Nome amigável
-  price: number;       // em reais
-  deadline: string;    // "5 a 8 dias úteis"
+  service: string;
+  name: string;
+  price: number;
+  deadline: string;
   deadlineDays: number;
 }
 
-interface CorreiosResponse {
-  Codigo: string;
-  Valor: string;
-  PrazoEntrega: string;
-  Erro: string;
-  MsgErro: string;
-}
+// Tabela por região — baseado em peso médio até 1kg
+// Norte é mais barato (origem), Sul/Sudeste mais caro
+const TABELA_FRETE: Record<string, { pac: number; pacDias: number; sedex: number; sedexDias: number }> = {
+  // Norte (mais próximo da origem)
+  AC: { pac: 28, pacDias: 10, sedex: 52, sedexDias: 6 },
+  AM: { pac: 22, pacDias: 8,  sedex: 45, sedexDias: 5 },
+  AP: { pac: 20, pacDias: 7,  sedex: 42, sedexDias: 4 },
+  PA: { pac: 15, pacDias: 5,  sedex: 28, sedexDias: 2 },
+  RO: { pac: 30, pacDias: 11, sedex: 55, sedexDias: 6 },
+  RR: { pac: 32, pacDias: 12, sedex: 58, sedexDias: 7 },
+  TO: { pac: 25, pacDias: 9,  sedex: 48, sedexDias: 5 },
 
-// Consulta CEP via ViaCEP (gratuito)
+  // Nordeste
+  AL: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
+  BA: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  CE: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
+  MA: { pac: 22, pacDias: 6,  sedex: 42, sedexDias: 3 },
+  PB: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  PE: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  PI: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
+  RN: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  SE: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
+
+  // Centro-Oeste
+  DF: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
+  GO: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
+  MT: { pac: 35, pacDias: 11, sedex: 62, sedexDias: 6 },
+  MS: { pac: 38, pacDias: 12, sedex: 65, sedexDias: 7 },
+
+  // Sudeste
+  ES: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
+  MG: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
+  RJ: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
+  SP: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
+
+  // Sul (mais distante)
+  PR: { pac: 42, pacDias: 12, sedex: 70, sedexDias: 7 },
+  SC: { pac: 45, pacDias: 13, sedex: 72, sedexDias: 7 },
+  RS: { pac: 48, pacDias: 14, sedex: 75, sedexDias: 8 },
+};
+
+// Padrão se UF não for identificada
+const TABELA_PADRAO = { pac: 40, pacDias: 12, sedex: 68, sedexDias: 7 };
+
+/**
+ * Consulta CEP via ViaCEP (gratuito, sem autenticação)
+ */
 export async function consultarCep(cep: string) {
   const cleanCep = cep.replace(/\D/g, "");
 
@@ -65,114 +100,75 @@ export async function consultarCep(cep: string) {
   };
 }
 
-// Calcula frete via web service dos Correios
+/**
+ * Calcula frete por região baseado no UF do CEP de destino.
+ * Para pacotes acima de 1kg, adiciona R$ 5 por kg extra.
+ */
 export async function calcularFrete(
   cepDestino: string,
-  peso: number,       // em gramas
-  comprimento: number, // cm
-  altura: number,      // cm
-  largura: number      // cm
+  peso: number,        // gramas
+  _comprimento: number, // não usado na tabela própria, mantido pela compatibilidade
+  _altura: number,
+  _largura: number
 ): Promise<ShippingOption[]> {
   const cleanCep = cepDestino.replace(/\D/g, "");
-  const pesoKg = Math.max(peso / 1000, 0.3); // mínimo 300g
 
-  // Garantir dimensões mínimas dos Correios
-  const comp = Math.max(comprimento, 16);
-  const alt = Math.max(altura, 2);
-  const larg = Math.max(largura, 11);
+  // Sempre disponibiliza retirada na loja
+  const options: ShippingOption[] = [
+    {
+      service: "RETIRADA",
+      name: "Retirada na loja",
+      price: 0,
+      deadline: "Disponível em 1 dia útil",
+      deadlineDays: 1,
+    },
+  ];
 
-  const options: ShippingOption[] = [];
+  // Descobre o UF a partir do CEP
+  let uf = "";
+  try {
+    const address = await consultarCep(cleanCep);
+    uf = address.state;
+  } catch {
+    // Sem UF, usa tabela padrão
+  }
 
-  // Opção de retirada na loja (sempre disponível)
+  const tabela = TABELA_FRETE[uf] || TABELA_PADRAO;
+
+  // Calcula peso extra (acima de 1kg, R$ 5 por kg)
+  const pesoKg = Math.max(peso / 1000, 0.3);
+  const pesoExtra = Math.max(0, Math.ceil(pesoKg - 1));
+  const adicionalPeso = pesoExtra * 5;
+
+  // Mesmo CEP de origem = retirada gratuita destacada (sem PAC/SEDEX caro)
+  // Para CEPs em Belém, oferece também entrega expressa local
+  if (cleanCep.startsWith("660") || cleanCep.startsWith("671") || cleanCep.startsWith("672")) {
+    options.push({
+      service: "LOCAL",
+      name: "Entrega em Belém — Motoboy",
+      price: 15.0 + adicionalPeso,
+      deadline: "1 a 2 dias úteis",
+      deadlineDays: 2,
+    });
+  }
+
+  // PAC
   options.push({
-    service: "RETIRADA",
-    name: "Retirada na loja",
-    price: 0,
-    deadline: "Disponível em 1 dia útil",
-    deadlineDays: 1,
+    service: "PAC",
+    name: "PAC — Econômico",
+    price: tabela.pac + adicionalPeso,
+    deadline: `${tabela.pacDias} a ${tabela.pacDias + 2} dias úteis`,
+    deadlineDays: tabela.pacDias,
   });
 
-  try {
-    // Busca PAC e SEDEX em paralelo
-    const promises = Object.entries(SERVICOS).map(async ([name, code]) => {
-      const params = new URLSearchParams({
-        nCdEmpresa: "",
-        sDsSenha: "",
-        nCdServico: code,
-        sCepOrigem: CEP_ORIGEM,
-        sCepDestino: cleanCep,
-        nVlPeso: pesoKg.toString(),
-        nCdFormato: "1", // caixa/pacote
-        nVlComprimento: comp.toString(),
-        nVlAltura: alt.toString(),
-        nVlLargura: larg.toString(),
-        nVlDiametro: "0",
-        sCdMaoPropria: "N",
-        nVlValorDeclarado: "0",
-        sCdAvisoRecebimento: "N",
-        StrRetorno: "xml",
-      });
-
-      const res = await fetch(
-        `http://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params}`,
-        { signal: AbortSignal.timeout(8000) } // timeout 8s
-      );
-
-      if (!res.ok) throw new Error(`Correios ${name}: ${res.status}`);
-
-      const xml = await res.text();
-
-      // Parse simples do XML
-      const valor = xml.match(/<Valor>([\d.,]+)<\/Valor>/)?.[1];
-      const prazo = xml.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/)?.[1];
-      const erro = xml.match(/<Erro>(\d+)<\/Erro>/)?.[1];
-
-      if (erro && erro !== "0" && erro !== "010") {
-        throw new Error(`Correios erro ${erro}`);
-      }
-
-      if (!valor || !prazo) throw new Error("Resposta inválida");
-
-      const price = parseFloat(valor.replace(",", "."));
-      const days = parseInt(prazo);
-
-      return {
-        service: name,
-        name: name === "PAC" ? "PAC — Econômico" : "SEDEX — Expresso",
-        price,
-        deadline: `${days} a ${days + 2} dias úteis`,
-        deadlineDays: days,
-      };
-    });
-
-    const results = await Promise.allSettled(promises);
-
-    results.forEach((result) => {
-      if (result.status === "fulfilled") {
-        options.push(result.value);
-      }
-    });
-  } catch (error) {
-    console.error("[CORREIOS_ERROR]", error);
-
-    // Fallback: preços estimados se a API falhar
-    options.push(
-      {
-        service: "PAC",
-        name: "PAC — Econômico (estimado)",
-        price: 25.9,
-        deadline: "8 a 12 dias úteis",
-        deadlineDays: 10,
-      },
-      {
-        service: "SEDEX",
-        name: "SEDEX — Expresso (estimado)",
-        price: 45.9,
-        deadline: "3 a 5 dias úteis",
-        deadlineDays: 4,
-      }
-    );
-  }
+  // SEDEX
+  options.push({
+    service: "SEDEX",
+    name: "SEDEX — Expresso",
+    price: tabela.sedex + adicionalPeso,
+    deadline: `${tabela.sedexDias} a ${tabela.sedexDias + 1} dias úteis`,
+    deadlineDays: tabela.sedexDias,
+  });
 
   // Ordena: retirada primeiro, depois por preço
   return options.sort((a, b) => {
