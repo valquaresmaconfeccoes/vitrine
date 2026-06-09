@@ -16,21 +16,17 @@ interface AddressData { cep: string; street: string; number: string; complement:
 export default function CheckoutPage() {
   const { customer, refreshCart } = useCart();
   const router = useRouter();
-  const [step, setStep] = useState(1);
   const [items, setItems] = useState<CartItemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
-  // Endereço
   const [address, setAddress] = useState<AddressData>({ cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" });
   const [cepLoading, setCepLoading] = useState(false);
 
-  // Frete
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
 
-  // Pagamento
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit_card">("pix");
 
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -47,11 +43,11 @@ export default function CheckoutPage() {
   const shippingCost = selectedShipping?.price || 0;
   const total = subtotal + shippingCost;
 
-  // Busca CEP
   async function handleCepBlur() {
     const cep = address.cep.replace(/\D/g, "");
     if (cep.length !== 8) return;
     setCepLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/shipping", {
         method: "POST",
@@ -63,23 +59,37 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
-      setAddress(prev => ({ ...prev, street: data.address.street || prev.street, neighborhood: data.address.neighborhood || prev.neighborhood, city: data.address.city, state: data.address.state }));
+      if (data.address) {
+        setAddress(prev => ({
+          ...prev,
+          street: data.address.street || prev.street,
+          neighborhood: data.address.neighborhood || prev.neighborhood,
+          city: data.address.city || "",
+          state: data.address.state || "",
+        }));
+      }
       setShippingOptions(data.options || []);
-      setError("");
     } catch { setError("Erro ao consultar CEP"); }
     finally { setCepLoading(false); }
   }
 
-  // Finaliza pedido
   async function handleCheckout() {
+    // Validações
+    if (selectedShipping?.service !== "RETIRADA") {
+      if (!address.cep || !address.street || !address.number || !address.neighborhood) {
+        setError("Preencha todos os campos do endereço.");
+        return;
+      }
+    }
+
     setProcessing(true);
     setError("");
     try {
-      // Primeiro salva o endereço
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          address: selectedShipping?.service !== "RETIRADA" ? address : null,
           shippingMethod: selectedShipping?.service || "RETIRADA",
           shippingCost: selectedShipping?.price || 0,
           shippingDeadline: selectedShipping?.deadline || "",
@@ -87,10 +97,9 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error); setProcessing(false); return; }
+      if (!res.ok) { setError(data.error || "Erro ao processar"); setProcessing(false); return; }
 
       await refreshCart();
-      // Redireciona para sucesso com dados
       const params = new URLSearchParams({
         pedido: data.orderNumber,
         metodo: paymentMethod,
@@ -99,7 +108,7 @@ export default function CheckoutPage() {
       });
       router.push(`/checkout/sucesso?${params.toString()}`);
     } catch {
-      setError("Erro ao processar. Tente novamente.");
+      setError("Erro de conexão. Tente novamente.");
       setProcessing(false);
     }
   }
@@ -115,59 +124,29 @@ export default function CheckoutPage() {
         {error && <div className="mb-6 p-4 bg-red-50 text-red-800 text-sm rounded-lg border border-red-200">{error}</div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Formulário */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* STEP 1: Endereço */}
+            {/* CEP + FRETE */}
             <div className="bg-white p-6 rounded-xl border border-neutral-200">
-              <h2 className="text-lg font-semibold text-neutral-900 mb-4">1. Endereço de entrega</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <h2 className="text-lg font-semibold text-neutral-900 mb-4">1. CEP e frete</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">CEP</label>
                   <input type="text" maxLength={9} value={address.cep} onChange={e => setAddress(p => ({ ...p, cep: e.target.value }))}
-                    onBlur={handleCepBlur} placeholder="66079-720"
+                    onBlur={handleCepBlur} placeholder="00000-000"
                     className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  {cepLoading && <p className="text-xs text-amber-600 mt-1">Consultando CEP...</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Rua</label>
-                  <input type="text" value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Número</label>
-                  <input type="text" value={address.number} onChange={e => setAddress(p => ({ ...p, number: e.target.value }))}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Complemento</label>
-                  <input type="text" value={address.complement} onChange={e => setAddress(p => ({ ...p, complement: e.target.value }))} placeholder="Apto, bloco..."
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Bairro</label>
-                  <input type="text" value={address.neighborhood} onChange={e => setAddress(p => ({ ...p, neighborhood: e.target.value }))}
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Cidade / UF</label>
-                  <input type="text" readOnly value={address.city ? `${address.city} — ${address.state}` : ""}
-                    className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-600" />
+                  {cepLoading && <p className="text-xs text-amber-600 mt-1">Calculando frete...</p>}
                 </div>
               </div>
-            </div>
 
-            {/* STEP 2: Frete */}
-            {shippingOptions.length > 0 && (
-              <div className="bg-white p-6 rounded-xl border border-neutral-200">
-                <h2 className="text-lg font-semibold text-neutral-900 mb-4">2. Frete</h2>
-                <div className="space-y-3">
+              {shippingOptions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-neutral-700 mb-2">Opções de envio:</p>
                   {shippingOptions.map(opt => (
-                    <label key={opt.service} className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${selectedShipping?.service === opt.service ? "border-amber-500 bg-amber-50" : "border-neutral-200 hover:border-neutral-300"}`}>
+                    <label key={opt.service} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${selectedShipping?.service === opt.service ? "border-amber-500 bg-amber-50" : "border-neutral-200 hover:border-neutral-300"}`}>
                       <div className="flex items-center gap-3">
                         <input type="radio" name="shipping" checked={selectedShipping?.service === opt.service}
-                          onChange={() => { setSelectedShipping(opt); setStep(3); }}
-                          className="w-4 h-4 text-amber-600" />
+                          onChange={() => setSelectedShipping(opt)} className="w-4 h-4 text-amber-600" />
                         <div>
                           <p className="text-sm font-medium text-neutral-900">{opt.name}</p>
                           <p className="text-xs text-neutral-500">{opt.deadline}</p>
@@ -177,47 +156,80 @@ export default function CheckoutPage() {
                     </label>
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* ENDEREÇO — só se não for retirada */}
+            {selectedShipping && selectedShipping.service !== "RETIRADA" && (
+              <div className="bg-white p-6 rounded-xl border border-neutral-200">
+                <h2 className="text-lg font-semibold text-neutral-900 mb-4">2. Endereço de entrega</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Rua *</label>
+                    <input type="text" required value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))}
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Número *</label>
+                    <input type="text" required value={address.number} onChange={e => setAddress(p => ({ ...p, number: e.target.value }))}
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Complemento</label>
+                    <input type="text" value={address.complement} onChange={e => setAddress(p => ({ ...p, complement: e.target.value }))}
+                      placeholder="Apto, bloco..."
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Bairro *</label>
+                    <input type="text" required value={address.neighborhood} onChange={e => setAddress(p => ({ ...p, neighborhood: e.target.value }))}
+                      className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Cidade / UF</label>
+                    <input type="text" readOnly value={address.city ? `${address.city} — ${address.state}` : ""}
+                      className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-600" />
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* STEP 3: Pagamento */}
+            {/* PAGAMENTO */}
             {selectedShipping && (
               <div className="bg-white p-6 rounded-xl border border-neutral-200">
-                <h2 className="text-lg font-semibold text-neutral-900 mb-4">3. Pagamento</h2>
+                <h2 className="text-lg font-semibold text-neutral-900 mb-4">
+                  {selectedShipping.service === "RETIRADA" ? "2." : "3."} Pagamento
+                </h2>
                 <div className="flex gap-3 mb-6">
                   <button onClick={() => setPaymentMethod("pix")}
                     className={`flex-1 py-3 rounded-lg text-sm font-medium border transition-colors ${paymentMethod === "pix" ? "border-green-500 bg-green-50 text-green-700" : "border-neutral-200 text-neutral-600"}`}>
                     Pix
                   </button>
-                  <button onClick={() => setPaymentMethod("credit_card")}
-                    className={`flex-1 py-3 rounded-lg text-sm font-medium border transition-colors ${paymentMethod === "credit_card" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-neutral-200 text-neutral-600"}`}>
-                    Cartão de Crédito
+                  <button onClick={() => setPaymentMethod("credit_card")} disabled
+                    className="flex-1 py-3 rounded-lg text-sm font-medium border border-neutral-200 text-neutral-400 cursor-not-allowed">
+                    Cartão (em breve)
                   </button>
                 </div>
 
-                {paymentMethod === "pix" && (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-neutral-600 mb-4">Após confirmar, você receberá o QR Code do Pix para pagamento.</p>
-                  </div>
-                )}
+                <div className="text-center py-3 px-4 bg-amber-50 rounded-lg border border-amber-200 mb-4">
+                  <p className="text-sm text-amber-900">
+                    {paymentMethod === "pix"
+                      ? "Após confirmar, você receberá o QR Code do Pix para pagar."
+                      : "Pagamento com cartão em breve."}
+                  </p>
+                </div>
 
-                {paymentMethod === "credit_card" && (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-neutral-600">O pagamento com cartão será processado pelo Mercado Pago de forma segura.</p>
-                  </div>
-                )}
-
-                <button onClick={handleCheckout} disabled={processing}
-                  className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-semibold text-lg rounded-xl transition-colors disabled:opacity-50">
+                <button onClick={handleCheckout} disabled={processing || paymentMethod === "credit_card"}
+                  className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-semibold text-lg rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {processing ? "Processando..." : `Pagar ${fmt(total)}`}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Resumo lateral */}
+          {/* RESUMO */}
           <div className="bg-white p-6 rounded-xl border border-neutral-200 h-fit sticky top-24">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Resumo do pedido</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Resumo</h2>
             <div className="space-y-3 mb-4">
               {items.map(item => (
                 <div key={item.id} className="flex gap-3">

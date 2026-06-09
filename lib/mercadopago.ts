@@ -1,18 +1,8 @@
 /**
  * mercadopago.ts — Integração com a API de Orders do Mercado Pago
- *
- * Usa fetch() direto (sem SDK) porque a API de Orders é mais nova
- * e o SDK oficial nem sempre tem suporte completo.
- *
- * Fluxo:
- * 1. Frontend tokeniza o cartão com MercadoPago.js
- * 2. Backend cria uma Order com o token → pagamento processado
- * 3. MP envia webhook quando status muda
- *
- * Ambientes:
- * - Teste: usa Access Token de teste (APP_USR-...)
- * - Produção: troca o Access Token pelas credenciais produtivas
  */
+
+import { randomUUID } from "crypto";
 
 const MP_BASE_URL = "https://api.mercadopago.com";
 const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || "";
@@ -54,12 +44,8 @@ export interface MpOrderResponse {
       id: string;
       status: string;
       status_detail: string;
-      payment_method: {
-        id: string;
-        type: string;
-      };
+      payment_method?: { id: string; type: string };
       amount: string;
-      // Pix
       point_of_interaction?: {
         transaction_data?: {
           qr_code?: string;
@@ -71,38 +57,36 @@ export interface MpOrderResponse {
   };
 }
 
-// Cabeçalhos padrão
 function headers() {
   return {
     Authorization: `Bearer ${ACCESS_TOKEN}`,
     "Content-Type": "application/json",
-    "X-Idempotency-Key": crypto.randomUUID(),
+    "X-Idempotency-Key": randomUUID(),
   };
 }
 
-// Criar pedido com Pix
 export async function createPixOrder(data: PixPaymentData): Promise<MpOrderResponse> {
+  if (!ACCESS_TOKEN) {
+    throw new Error("MP_ACCESS_TOKEN não configurado nas variáveis de ambiente.");
+  }
+
   const body = {
     type: "online",
     processing_mode: "automatic",
     total_amount: data.totalAmount.toFixed(2),
     external_reference: data.externalReference,
-    payer: {
-      email: data.payerEmail,
-    },
+    payer: { email: data.payerEmail },
     transactions: {
       payments: [
         {
           amount: data.totalAmount.toFixed(2),
-          payment_method: {
-            id: "pix",
-            type: "bank_transfer",
-          },
+          payment_method: { id: "pix", type: "bank_transfer" },
         },
       ],
     },
-    notification_url: data.notificationUrl,
   };
+
+  console.log("[MP_PIX] Request body:", JSON.stringify(body));
 
   const res = await fetch(`${MP_BASE_URL}/v1/orders`, {
     method: "POST",
@@ -110,31 +94,33 @@ export async function createPixOrder(data: PixPaymentData): Promise<MpOrderRespo
     body: JSON.stringify(body),
   });
 
+  const responseText = await res.text();
+  console.log("[MP_PIX] Response status:", res.status, "body:", responseText.substring(0, 500));
+
   if (!res.ok) {
-    const error = await res.text();
-    console.error("[MP_PIX_ERROR]", res.status, error);
-    throw new Error(`Mercado Pago error: ${res.status}`);
+    throw new Error(`Mercado Pago erro ${res.status}: ${responseText.substring(0, 200)}`);
   }
 
-  return res.json();
+  return JSON.parse(responseText);
 }
 
-// Criar pedido com Cartão de Crédito
 export async function createCardOrder(data: CardPaymentData): Promise<MpOrderResponse> {
+  if (!ACCESS_TOKEN) {
+    throw new Error("MP_ACCESS_TOKEN não configurado nas variáveis de ambiente.");
+  }
+
   const body = {
     type: "online",
     processing_mode: "automatic",
     total_amount: data.totalAmount.toFixed(2),
     external_reference: data.externalReference,
-    payer: {
-      email: data.payerEmail,
-    },
+    payer: { email: data.payerEmail },
     transactions: {
       payments: [
         {
           amount: data.totalAmount.toFixed(2),
           payment_method: {
-            id: "master", // O MP detecta a bandeira pelo token
+            id: "master",
             type: "credit_card",
             token: data.token,
             installments: data.installments,
@@ -142,7 +128,6 @@ export async function createCardOrder(data: CardPaymentData): Promise<MpOrderRes
         },
       ],
     },
-    notification_url: data.notificationUrl,
   };
 
   const res = await fetch(`${MP_BASE_URL}/v1/orders`, {
@@ -151,21 +136,19 @@ export async function createCardOrder(data: CardPaymentData): Promise<MpOrderRes
     body: JSON.stringify(body),
   });
 
+  const responseText = await res.text();
+  console.log("[MP_CARD] Response status:", res.status);
+
   if (!res.ok) {
-    const error = await res.text();
-    console.error("[MP_CARD_ERROR]", res.status, error);
-    throw new Error(`Mercado Pago error: ${res.status}`);
+    throw new Error(`Mercado Pago erro ${res.status}: ${responseText.substring(0, 200)}`);
   }
 
-  return res.json();
+  return JSON.parse(responseText);
 }
 
-// Buscar pedido pelo ID (para verificação no webhook)
 export async function getOrder(orderId: string): Promise<MpOrderResponse> {
   const res = await fetch(`${MP_BASE_URL}/v1/orders/${orderId}`, {
-    headers: {
-      Authorization: `Bearer ${ACCESS_TOKEN}`,
-    },
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
   });
 
   if (!res.ok) {
@@ -175,7 +158,6 @@ export async function getOrder(orderId: string): Promise<MpOrderResponse> {
   return res.json();
 }
 
-// Public Key para o frontend (não é segredo)
 export function getPublicKey(): string {
   return process.env.MP_PUBLIC_KEY || "";
 }
