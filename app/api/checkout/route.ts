@@ -126,7 +126,13 @@ export async function POST(request: Request) {
     const notificationUrl = `${baseUrl}/api/webhooks/mercadopago`;
 
     const customer = await prisma.customer.findUnique({ where: { id: session.id } });
-    const payerEmail = customer?.email || session.email;
+    const realEmail = customer?.email || session.email;
+
+    // O sandbox do Mercado Pago exige email @testuser.com.
+    // Em produção, troque MP_SANDBOX para "false" no Railway.
+    const isSandbox = process.env.MP_SANDBOX !== "false";
+    const payerEmail = isSandbox ? "test_user_valquaresma@testuser.com" : realEmail;
+    console.log("[CHECKOUT] Sandbox:", isSandbox, "| Payer:", payerEmail);
 
     const mpItems = cart.items.map((item) => ({
       title: item.variant ? `${item.product.name} — ${item.variant.name}` : item.product.name,
