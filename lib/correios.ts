@@ -43,7 +43,7 @@ export async function consultarCep(cep: string) {
   }
 
   const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`, {
-    next: { revalidate: 86400 }, // Cache 24h
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!res.ok) {
