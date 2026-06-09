@@ -1,7 +1,3 @@
-// ============================================================================
-// Val Quaresma — Schema Prisma (v3 — E-commerce)
-// ============================================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,60 +7,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// CATEGORIAS
-// ============================================================================
 model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
   description String?
   image       String?
-  order       Int      @default(0)
-  active      Boolean  @default(true)
-
+  order       Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   products    Product[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
   @@index([slug])
   @@index([active, order])
   @@map("categories")
 }
 
-// ============================================================================
-// PRODUTOS
-// ============================================================================
 model Product {
-  id          String   @id @default(cuid())
+  id          String         @id @default(cuid())
   name        String
-  slug        String   @unique
-  description String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-
+  slug        String         @unique
+  description String
+  price       Decimal        @db.Decimal(10, 2)
   mainImage   String
-  images      ProductImage[]
-
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-
-  active      Boolean  @default(true)
-  featured    Boolean  @default(false)
-  stock       Int?     @default(0)
-  variants    Variant[]
-
-  // Dados para cálculo de frete (Correios)
-  weight      Int      @default(300)   // peso em gramas
-  width       Int      @default(15)    // largura em cm
-  height      Int      @default(10)    // altura em cm
-  length      Int      @default(20)    // comprimento em cm
-
+  active      Boolean        @default(true)
+  featured    Boolean        @default(false)
+  stock       Int?           @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  height      Int            @default(10)
+  length      Int            @default(20)
+  weight      Int            @default(300)
+  width       Int            @default(15)
   cartItems   CartItem[]
   orderItems  OrderItem[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  images      ProductImage[]
+  category    Category       @relation(fields: [categoryId], references: [id])
+  variants    Variant[]
 
   @@index([slug])
   @@index([active, featured])
@@ -72,74 +53,184 @@ model Product {
   @@map("products")
 }
 
-// ============================================================================
-// IMAGENS DA GALERIA
-// ============================================================================
 model ProductImage {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   url       String
-  alt       String  @default("")
-  order     Int     @default(0)
-
+  alt       String   @default("")
+  order     Int      @default(0)
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
   createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, order])
   @@map("product_images")
 }
 
-// ============================================================================
-// VARIAÇÕES
-// ============================================================================
 model Variant {
-  id          String   @id @default(cuid())
-  sku         String?  @unique
-  name        String
-  price       Decimal  @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  attributes  Json?
-
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  active      Boolean  @default(true)
-
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String      @id @default(cuid())
+  sku        String?     @unique
+  name       String
+  price      Decimal     @db.Decimal(10, 2)
+  stock      Int         @default(0)
+  attributes Json?
+  productId  String
+  active     Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, active])
   @@map("variants")
 }
 
-// ============================================================================
-// HERO SLIDES
-// ============================================================================
 model HeroSlide {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   image        String
   title        String?
   subtitle     String?
   buttonText   String?
   buttonUrl    String?
   buttonTarget HeroButtonTarget @default(SELF)
-  textColor    HeroTextColor @default(LIGHT)
-  duration     Int      @default(5)
+  textColor    HeroTextColor    @default(LIGHT)
+  duration     Int              @default(5)
   startsAt     DateTime?
   endsAt       DateTime?
-  priority     Int      @default(0)
-  active       Boolean  @default(true)
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  priority     Int              @default(0)
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   @@index([active, priority])
   @@index([startsAt, endsAt])
   @@map("hero_slides")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  phone     String?
+  password  String
+  cpf       String?   @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  addresses Address[]
+  cart      Cart?
+  orders    Order[]
+
+  @@index([email])
+  @@map("customers")
+}
+
+model Address {
+  id            String   @id @default(cuid())
+  label         String   @default("Casa")
+  recipientName String
+  cep           String
+  street        String
+  number        String
+  complement    String?
+  neighborhood  String
+  city          String
+  state         String   @db.Char(2)
+  customerId    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders        Order[]
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+model Cart {
+  id         String     @id @default(cuid())
+  customerId String     @unique
+  updatedAt  DateTime   @updatedAt
+  items      CartItem[]
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  cartId    String
+  productId String
+  variantId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   Variant? @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  orderNumber      String      @unique
+  status           OrderStatus @default(PENDING)
+  subtotal         Decimal     @db.Decimal(10, 2)
+  shippingCost     Decimal     @default(0) @db.Decimal(10, 2)
+  total            Decimal     @db.Decimal(10, 2)
+  shippingMethod   String?
+  shippingDeadline String?
+  trackingCode     String?
+  mpOrderId        String?     @unique
+  mpPaymentId      String?
+  paymentMethod    String?
+  paymentStatus    String?
+  paidAt           DateTime?
+  customerId       String
+  addressId        String?
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
+  address          Address?    @relation(fields: [addressId], references: [id])
+  customer         Customer    @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderNumber])
+  @@index([mpOrderId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  quantity     Int
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  productName  String
+  productImage String
+  variantName  String?
+  orderId      String
+  productId    String
+  variantId    String?
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id])
+  variant      Variant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
 }
 
 enum HeroButtonTarget {
@@ -152,187 +243,17 @@ enum HeroTextColor {
   DARK
 }
 
-// ============================================================================
-// USUÁRIO ADMIN
-// ============================================================================
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      Role     @default(ADMIN)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
-}
-
 enum Role {
   ADMIN
   STAFF
 }
 
-// ============================================================================
-// CLIENTE (e-commerce)
-// ============================================================================
-model Customer {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  phone     String?
-  password  String
-  cpf       String?  @unique
-
-  addresses Address[]
-  cart      Cart?
-  orders    Order[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([email])
-  @@map("customers")
-}
-
-// ============================================================================
-// ENDEREÇO
-// ============================================================================
-model Address {
-  id           String   @id @default(cuid())
-  label        String   @default("Casa")  // "Casa", "Trabalho", etc.
-  recipientName String
-  cep          String
-  street       String
-  number       String
-  complement   String?
-  neighborhood String
-  city         String
-  state        String   @db.Char(2)
-
-  customerId   String
-  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  orders       Order[]
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([customerId])
-  @@map("addresses")
-}
-
-// ============================================================================
-// CARRINHO
-// ============================================================================
-model Cart {
-  id         String     @id @default(cuid())
-
-  customerId String     @unique
-  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  items      CartItem[]
-
-  updatedAt  DateTime   @updatedAt
-
-  @@map("carts")
-}
-
-model CartItem {
-  id        String   @id @default(cuid())
-  quantity  Int      @default(1)
-
-  cartId    String
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  variantId String?
-  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([cartId, productId, variantId])
-  @@index([cartId])
-  @@map("cart_items")
-}
-
-// ============================================================================
-// PEDIDO
-// ============================================================================
-model Order {
-  id               String      @id @default(cuid())
-  orderNumber      String      @unique  // VQ-20260608-001
-  status           OrderStatus @default(PENDING)
-
-  // Valores
-  subtotal         Decimal     @db.Decimal(10, 2)
-  shippingCost     Decimal     @db.Decimal(10, 2) @default(0)
-  total            Decimal     @db.Decimal(10, 2)
-
-  // Frete
-  shippingMethod   String?     // "PAC", "SEDEX", "RETIRADA"
-  shippingDeadline String?     // "5 a 8 dias úteis"
-  trackingCode     String?
-
-  // Pagamento (Mercado Pago)
-  mpOrderId        String?     @unique
-  mpPaymentId      String?
-  paymentMethod    String?     // "pix", "credit_card"
-  paymentStatus    String?     // "approved", "pending", etc.
-  paidAt           DateTime?
-
-  // Relacionamentos
-  customerId       String
-  customer         Customer    @relation(fields: [customerId], references: [id])
-
-  addressId        String?
-  address          Address?    @relation(fields: [addressId], references: [id])
-
-  items            OrderItem[]
-  notes            String?     @db.Text
-
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-
-  @@index([customerId])
-  @@index([status])
-  @@index([orderNumber])
-  @@index([mpOrderId])
-  @@map("orders")
-}
-
-model OrderItem {
-  id           String   @id @default(cuid())
-  quantity     Int
-  unitPrice    Decimal  @db.Decimal(10, 2) // preço no momento da compra
-
-  // Snapshot do produto (caso seja editado/deletado depois)
-  productName  String
-  productImage String
-  variantName  String?
-
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  productId    String
-  product      Product  @relation(fields: [productId], references: [id])
-
-  variantId    String?
-  variant      Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
 enum OrderStatus {
-  PENDING           // Aguardando pagamento
-  PAYMENT_APPROVED  // Pagamento confirmado
-  PROCESSING        // Em preparação
-  SHIPPED           // Enviado
-  DELIVERED         // Entregue
-  CANCELLED         // Cancelado
-  REFUNDED          // Reembolsado
+  PENDING
+  PAYMENT_APPROVED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
 }
