@@ -5,18 +5,23 @@ import { createHmac } from "crypto";
 
 /**
  * Valida a assinatura do webhook do Mercado Pago
- * Protege contra notificações falsas/mal-intencionadas
+ * Fórmula oficial: HMAC-SHA256("id:{data.id};request-id:{x-request-id};ts:{ts};", secret)
  */
 function validateSignature(request: Request, body: string): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // sem secret configurado, não valida (dev)
+  if (!secret) {
+    console.log("[WEBHOOK] MP_WEBHOOK_SECRET não configurado — validação desabilitada");
+    return true;
+  }
 
   const xSignature = request.headers.get("x-signature");
   const xRequestId = request.headers.get("x-request-id");
 
-  if (!xSignature) return false;
+  if (!xSignature || !xRequestId) {
+    console.log("[WEBHOOK] Headers de assinatura ausentes");
+    return false;
+  }
 
-  // Monta a string de validação: "id:{requestId};request-id:{xRequestId};ts:{ts};"
   const parts: Record<string, string> = {};
   xSignature.split(",").forEach((part) => {
     const [key, value] = part.trim().split("=");
@@ -26,12 +31,29 @@ function validateSignature(request: Request, body: string): boolean {
   const ts = parts["ts"];
   const v1 = parts["v1"];
 
-  if (!ts || !v1) return false;
+  if (!ts || !v1) {
+    console.log("[WEBHOOK] ts ou v1 ausentes na assinatura");
+    return false;
+  }
 
-  const manifest = `id:${xRequestId};request-id:${xRequestId};ts:${ts};`;
+  // Extrai data.id do body para montar o manifest correto
+  let dataId = "";
+  try {
+    const parsed = JSON.parse(body);
+    dataId = parsed.data?.id?.toString() || "";
+  } catch {
+    return false;
+  }
+
+  // Fórmula oficial do MP: id:{data.id};request-id:{x-request-id};ts:{ts};
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const hmac = createHmac("sha256", secret).update(manifest).digest("hex");
 
-  return hmac === v1;
+  const valid = hmac === v1;
+  if (!valid) {
+    console.log("[WEBHOOK] Assinatura inválida. manifest:", manifest, "| calculado:", hmac, "| esperado:", v1);
+  }
+  return valid;
 }
 
 export async function POST(request: Request) {

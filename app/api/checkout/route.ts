@@ -197,8 +197,41 @@ export async function POST(request: Request) {
       },
     });
 
-    // Limpa carrinho só se pagamento foi processado
+    // Limpa carrinho
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+    // A Orders API v1 do MP retorna o QR Code em estruturas variáveis.
+    // Tenta múltiplos caminhos conhecidos.
+    type MpPaymentExtended = {
+      point_of_interaction?: {
+        transaction_data?: { qr_code?: string; qr_code_base64?: string; ticket_url?: string };
+      };
+      payment_method?: { qr_code?: string; qr_code_base64?: string; ticket_url?: string };
+      qr_code?: string;
+      qr_code_base64?: string;
+      ticket_url?: string;
+    };
+    const p = mpPayment as MpPaymentExtended | undefined;
+
+    const qrCode =
+      p?.point_of_interaction?.transaction_data?.qr_code ||
+      p?.payment_method?.qr_code ||
+      p?.qr_code ||
+      null;
+
+    const qrCodeBase64 =
+      p?.point_of_interaction?.transaction_data?.qr_code_base64 ||
+      p?.payment_method?.qr_code_base64 ||
+      p?.qr_code_base64 ||
+      null;
+
+    const ticketUrl =
+      p?.point_of_interaction?.transaction_data?.ticket_url ||
+      p?.payment_method?.ticket_url ||
+      p?.ticket_url ||
+      null;
+
+    console.log("[CHECKOUT] QR Code presente?", !!qrCode, "| Base64?", !!qrCodeBase64, "| Ticket?", !!ticketUrl);
 
     return NextResponse.json({
       success: true,
@@ -206,14 +239,7 @@ export async function POST(request: Request) {
       orderNumber: order.orderNumber,
       status: mpResponse.status,
       paymentMethod,
-      pix:
-        paymentMethod === "pix"
-          ? {
-              qrCode: mpPayment?.point_of_interaction?.transaction_data?.qr_code,
-              qrCodeBase64: mpPayment?.point_of_interaction?.transaction_data?.qr_code_base64,
-              ticketUrl: mpPayment?.point_of_interaction?.transaction_data?.ticket_url,
-            }
-          : null,
+      pix: paymentMethod === "pix" ? { qrCode, qrCodeBase64, ticketUrl } : null,
     });
   } catch (error) {
     console.error("[CHECKOUT_FATAL_ERROR]", error);

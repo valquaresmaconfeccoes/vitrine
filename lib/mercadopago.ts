@@ -95,13 +95,17 @@ export async function createPixOrder(data: PixPaymentData): Promise<MpOrderRespo
   });
 
   const responseText = await res.text();
-  console.log("[MP_PIX] Response status:", res.status, "body:", responseText.substring(0, 500));
+  console.log("[MP_PIX] Response status:", res.status);
+  console.log("[MP_PIX] Response body FULL:", responseText);
 
   if (!res.ok) {
     throw new Error(`Mercado Pago erro ${res.status}: ${responseText.substring(0, 200)}`);
   }
 
-  return JSON.parse(responseText);
+  const parsed = JSON.parse(responseText);
+  console.log("[MP_PIX] Transactions:", JSON.stringify(parsed.transactions || {}, null, 2));
+
+  return parsed;
 }
 
 export async function createCardOrder(data: CardPaymentData): Promise<MpOrderResponse> {
