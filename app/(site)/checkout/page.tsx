@@ -100,13 +100,7 @@ export default function CheckoutPage() {
       if (!res.ok) { setError(data.error || "Erro ao processar"); setProcessing(false); return; }
 
       await refreshCart();
-      const params = new URLSearchParams({
-        pedido: data.orderNumber,
-        metodo: paymentMethod,
-        ...(data.pix?.qrCode ? { pixCode: data.pix.qrCode } : {}),
-        ...(data.pix?.qrCodeBase64 ? { pixQr: data.pix.qrCodeBase64 } : {}),
-      });
-      router.push(`/checkout/sucesso?${params.toString()}`);
+      router.push(`/checkout/sucesso?pedido=${data.orderNumber}&metodo=${paymentMethod}`);
     } catch {
       setError("Erro de conexão. Tente novamente.");
       setProcessing(false);

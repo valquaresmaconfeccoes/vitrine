@@ -218,7 +218,6 @@ export async function POST(request: Request) {
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     // A Orders API v1 do MP retorna o QR Code em estruturas variáveis.
-    // Tenta múltiplos caminhos conhecidos.
     type MpPaymentExtended = {
       point_of_interaction?: {
         transaction_data?: { qr_code?: string; qr_code_base64?: string; ticket_url?: string };
@@ -230,25 +229,21 @@ export async function POST(request: Request) {
     };
     const p = mpPayment as MpPaymentExtended | undefined;
 
-    const qrCode =
-      p?.point_of_interaction?.transaction_data?.qr_code ||
-      p?.payment_method?.qr_code ||
-      p?.qr_code ||
-      null;
+    const pixData = paymentMethod === "pix" ? {
+      qrCode: p?.payment_method?.qr_code || p?.point_of_interaction?.transaction_data?.qr_code || p?.qr_code || null,
+      qrCodeBase64: p?.payment_method?.qr_code_base64 || p?.point_of_interaction?.transaction_data?.qr_code_base64 || p?.qr_code_base64 || null,
+      ticketUrl: p?.payment_method?.ticket_url || p?.point_of_interaction?.transaction_data?.ticket_url || p?.ticket_url || null,
+    } : null;
 
-    const qrCodeBase64 =
-      p?.point_of_interaction?.transaction_data?.qr_code_base64 ||
-      p?.payment_method?.qr_code_base64 ||
-      p?.qr_code_base64 ||
-      null;
+    // Salva dados do Pix no campo notes (evita passar base64 pela URL)
+    if (pixData) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { notes: JSON.stringify(pixData) },
+      });
+    }
 
-    const ticketUrl =
-      p?.point_of_interaction?.transaction_data?.ticket_url ||
-      p?.payment_method?.ticket_url ||
-      p?.ticket_url ||
-      null;
-
-    console.log("[CHECKOUT] QR Code presente?", !!qrCode, "| Base64?", !!qrCodeBase64, "| Ticket?", !!ticketUrl);
+    console.log("[CHECKOUT] QR Code presente?", !!pixData?.qrCode, "| Base64?", !!pixData?.qrCodeBase64, "| Ticket?", !!pixData?.ticketUrl);
 
     return NextResponse.json({
       success: true,
@@ -256,7 +251,6 @@ export async function POST(request: Request) {
       orderNumber: order.orderNumber,
       status: mpResponse.status,
       paymentMethod,
-      pix: paymentMethod === "pix" ? { qrCode, qrCodeBase64, ticketUrl } : null,
     });
   } catch (error) {
     console.error("[CHECKOUT_FATAL_ERROR]", error);

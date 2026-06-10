@@ -5,8 +5,8 @@ import { prisma } from "@/lib/db";
 /**
  * GET /api/orders/check?numero=VQ-XXXXX
  *
+ * Retorna status do pedido + dados do Pix (qr_code, ticket_url)
  * Usado pelo polling da página de sucesso.
- * Retorna { paid: true } quando o webhook do MP atualiza o status para PAYMENT_APPROVED.
  */
 export async function GET(request: Request) {
   const session = await getCustomerSession();
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
   const order = await prisma.order.findUnique({
     where: { orderNumber: numero },
-    select: { customerId: true, status: true, paidAt: true },
+    select: { customerId: true, status: true, paidAt: true, notes: true, paymentMethod: true },
   });
 
   if (!order || order.customerId !== session.id) {
@@ -32,5 +32,19 @@ export async function GET(request: Request) {
 
   const paid = order.status === "PAYMENT_APPROVED" || !!order.paidAt;
 
-  return NextResponse.json({ paid, status: order.status });
+  // Parse pix data do campo notes
+  let pixData = null;
+  if (order.paymentMethod === "pix" && order.notes) {
+    try {
+      pixData = JSON.parse(order.notes);
+    } catch {
+      pixData = null;
+    }
+  }
+
+  return NextResponse.json({
+    paid,
+    status: order.status,
+    pixData,
+  });
 }
