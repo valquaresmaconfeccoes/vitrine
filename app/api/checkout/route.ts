@@ -128,11 +128,28 @@ export async function POST(request: Request) {
     const customer = await prisma.customer.findUnique({ where: { id: session.id } });
     const realEmail = customer?.email || session.email;
 
-    // O sandbox do Mercado Pago exige email @testuser.com.
-    // Em produção, troque MP_SANDBOX para "false" no Railway.
-    const isSandbox = process.env.MP_SANDBOX !== "false";
-    const payerEmail = isSandbox ? "test_user_valquaresma@testuser.com" : realEmail;
-    console.log("[CHECKOUT] Sandbox:", isSandbox, "| Payer:", payerEmail);
+    // Detecção automática de produção vs sandbox.
+    // Em produção, o token tem o formato APP_USR-XXXXXXXX-NNNNNN-...
+    // Em teste, o token tem formato TEST-... (alguns tokens novos também usam APP_USR-, então usamos MP_SANDBOX=false como override)
+    const tokenIsTest = (process.env.MP_ACCESS_TOKEN || "").startsWith("TEST-");
+    const forceProduction = process.env.MP_SANDBOX === "false";
+    const isSandbox = !forceProduction && tokenIsTest;
+
+    // Sandbox exige email @testuser.com; produção exige email real válido
+    const payerEmail = isSandbox
+      ? "test_user_valquaresma@testuser.com"
+      : realEmail;
+
+    // Validação adicional para produção: email precisa ser válido
+    if (!isSandbox && (!realEmail || !realEmail.includes("@"))) {
+      console.error("[CHECKOUT] Email do cliente inválido em produção:", realEmail);
+      return NextResponse.json(
+        { error: "Email do cliente inválido. Atualize seu cadastro." },
+        { status: 400 }
+      );
+    }
+
+    console.log("[CHECKOUT] Modo:", isSandbox ? "SANDBOX" : "PRODUÇÃO", "| Payer:", payerEmail);
 
     const mpItems = cart.items.map((item) => ({
       title: item.variant ? `${item.product.name} — ${item.variant.name}` : item.product.name,
