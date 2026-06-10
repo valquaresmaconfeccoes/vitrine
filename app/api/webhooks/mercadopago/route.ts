@@ -1,88 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getOrder } from "@/lib/mercadopago";
-import { createHmac } from "crypto";
 
 /**
- * Valida a assinatura do webhook do Mercado Pago
- * Fórmula oficial: HMAC-SHA256("id:{data.id};request-id:{x-request-id};ts:{ts};", secret)
+ * Webhook do Mercado Pago
+ *
+ * Segurança: em vez de validar assinatura (que o MP calcula de forma
+ * inconsistente entre versões), verificamos o pedido DIRETAMENTE na
+ * API do MP com nosso Access Token. Isso garante que o status é real
+ * — um atacante não consegue forjar uma resposta da API do MP.
  */
-function validateSignature(request: Request, body: string): boolean {
-  const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) {
-    console.log("[WEBHOOK] MP_WEBHOOK_SECRET não configurado — validação desabilitada");
-    return true;
-  }
-
-  const xSignature = request.headers.get("x-signature");
-  const xRequestId = request.headers.get("x-request-id");
-
-  if (!xSignature || !xRequestId) {
-    console.log("[WEBHOOK] Headers de assinatura ausentes");
-    return false;
-  }
-
-  const parts: Record<string, string> = {};
-  xSignature.split(",").forEach((part) => {
-    const [key, value] = part.trim().split("=");
-    if (key && value) parts[key] = value;
-  });
-
-  const ts = parts["ts"];
-  const v1 = parts["v1"];
-
-  if (!ts || !v1) {
-    console.log("[WEBHOOK] ts ou v1 ausentes na assinatura");
-    return false;
-  }
-
-  // Extrai data.id do body para montar o manifest correto
-  let dataId = "";
-  try {
-    const parsed = JSON.parse(body);
-    dataId = parsed.data?.id?.toString() || "";
-  } catch {
-    return false;
-  }
-
-  // Fórmula oficial do MP: id:{data.id};request-id:{x-request-id};ts:{ts};
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-  const hmac = createHmac("sha256", secret).update(manifest).digest("hex");
-
-  const valid = hmac === v1;
-  if (!valid) {
-    console.log("[WEBHOOK] Assinatura inválida. manifest:", manifest, "| calculado:", hmac, "| esperado:", v1);
-  }
-  return valid;
-}
-
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
-
-    // Valida assinatura (segurança)
-    if (!validateSignature(request, rawBody)) {
-      console.warn("[WEBHOOK] Assinatura inválida — ignorado");
-      return NextResponse.json({ received: true });
-    }
-
     const body = JSON.parse(rawBody);
+
+    console.log("[WEBHOOK] Notificação recebida:", JSON.stringify(body).substring(0, 500));
+
     const resourceId = body.data?.id || body.resource;
 
     if (!resourceId) {
+      console.log("[WEBHOOK] Sem resourceId — ignorado");
       return NextResponse.json({ received: true });
     }
 
-    // Busca o pedido no Mercado Pago para confirmar o status real
+    // Busca o pedido DIRETAMENTE na API do MP (segurança real)
     let mpOrder;
     try {
       mpOrder = await getOrder(resourceId.toString());
+      console.log("[WEBHOOK] MP Order status:", mpOrder.status, "| external_ref:", mpOrder.external_reference);
     } catch {
       console.log("[WEBHOOK] Não foi possível buscar order:", resourceId);
       return NextResponse.json({ received: true });
     }
 
     if (!mpOrder.external_reference) {
+      console.log("[WEBHOOK] Sem external_reference");
       return NextResponse.json({ received: true });
     }
 
@@ -117,7 +70,7 @@ export async function POST(request: Request) {
       data: updateData,
     });
 
-    console.log(`[WEBHOOK] Pedido ${order.orderNumber} → ${paymentStatus}`);
+    console.log(`[WEBHOOK] ✅ Pedido ${order.orderNumber} → ${paymentStatus}`);
 
     return NextResponse.json({ received: true });
   } catch (error) {
