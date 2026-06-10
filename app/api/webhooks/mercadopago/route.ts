@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       mpPaymentId: mpPayment?.id || order.mpPaymentId,
     };
 
-    if (paymentStatus === "approved") {
+    if (paymentStatus === "approved" || paymentStatus === "processed") {
       updateData.status = "PAYMENT_APPROVED";
       updateData.paidAt = new Date();
     } else if (paymentStatus === "rejected" || paymentStatus === "cancelled") {
