@@ -52,6 +52,9 @@ export default async function ProductsPage() {
                   Estoque
                 </th>
                 <th className="px-4 py-3 text-left text-xs uppercase tracking-widest font-medium">
+                  Badge
+                </th>
+                <th className="px-4 py-3 text-left text-xs uppercase tracking-widest font-medium">
                   Status
                 </th>
                 <th className="px-4 py-3 text-right text-xs uppercase tracking-widest font-medium">
@@ -94,6 +97,24 @@ export default async function ProductsPage() {
                   </td>
                   <td className="px-4 py-4 text-sm text-noir">
                     {product.stock ?? "—"}
+                  </td>
+                  <td className="px-4 py-4">
+                    {product.badge !== "NONE" ? (
+                      <span className={`inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest rounded ${
+                        product.badge === "MAIS_VENDIDO" ? "bg-amber-100 text-amber-800" :
+                        product.badge === "NOVIDADE" ? "bg-emerald-100 text-emerald-800" :
+                        product.badge === "PROMOCAO" ? "bg-red-100 text-red-800" :
+                        product.badge === "EXCLUSIVO" ? "bg-purple-100 text-purple-800" :
+                        "bg-neutral-100 text-neutral-600"
+                      }`}>
+                        {product.badge === "MAIS_VENDIDO" ? "Mais Vendido" :
+                         product.badge === "NOVIDADE" ? "Novidade" :
+                         product.badge === "PROMOCAO" ? "Promoção" :
+                         product.badge === "EXCLUSIVO" ? "Exclusivo" : "—"}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-warm-gray">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-4">
                     <span

@@ -28,6 +28,7 @@ interface ProductFormProps {
     mainImage: string;
     categoryId: string;
     stock: number | null;
+    badge: string;
     active: boolean;
     featured: boolean;
     images: { url: string; order: number }[];
@@ -147,7 +148,7 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
           placeholder="Descreva o produto: tecido, caimento, ocasiões de uso..."
         />
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6">
           <Input
             label="Preço (R$)"
             name="price"
@@ -165,6 +166,19 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
             type="number"
             min={0}
             defaultValue={product?.stock ?? 0}
+          />
+
+          <Select
+            label="Badge (selo)"
+            name="badge"
+            defaultValue={product?.badge ?? "NONE"}
+            options={[
+              { value: "NONE", label: "Nenhum" },
+              { value: "MAIS_VENDIDO", label: "⭐ Mais Vendido" },
+              { value: "NOVIDADE", label: "🆕 Novidade" },
+              { value: "PROMOCAO", label: "🏷️ Promoção" },
+              { value: "EXCLUSIVO", label: "💎 Exclusivo" },
+            ]}
           />
         </div>
 

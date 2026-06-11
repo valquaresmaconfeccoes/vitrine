@@ -47,6 +47,7 @@ export default async function EditProductPage({
           mainImage: product.mainImage,
           categoryId: product.categoryId,
           stock: product.stock,
+          badge: product.badge,
           active: product.active,
           featured: product.featured,
           images: product.images.map((img) => ({

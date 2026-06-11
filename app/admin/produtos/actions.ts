@@ -49,6 +49,7 @@ function parseProductForm(formData: FormData) {
   const mainImage = (formData.get("mainImage") as string)?.trim();
   const categoryId = (formData.get("categoryId") as string)?.trim();
   const stock = parseInt((formData.get("stock") as string) || "0", 10);
+  const badge = (formData.get("badge") as string) || "NONE";
   const active = formData.get("active") === "on";
   const featured = formData.get("featured") === "on";
 
@@ -78,6 +79,7 @@ function parseProductForm(formData: FormData) {
     mainImage,
     categoryId,
     stock,
+    badge,
     active,
     featured,
     galleryImages: galleryImages.filter((url) => url.trim() !== ""),
@@ -112,6 +114,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
         mainImage: data.mainImage,
         categoryId: data.categoryId,
         stock: data.stock,
+        badge: data.badge as "NONE" | "MAIS_VENDIDO" | "NOVIDADE" | "PROMOCAO" | "EXCLUSIVO",
         active: data.active,
         featured: data.featured,
         // Cria as imagens da galeria
@@ -179,6 +182,7 @@ export async function updateProduct(
           mainImage: data.mainImage,
           categoryId: data.categoryId,
           stock: data.stock,
+          badge: data.badge as "NONE" | "MAIS_VENDIDO" | "NOVIDADE" | "PROMOCAO" | "EXCLUSIVO",
           active: data.active,
           featured: data.featured,
           images: {

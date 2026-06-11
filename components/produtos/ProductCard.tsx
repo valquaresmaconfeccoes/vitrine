@@ -1,6 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 
+// Mapa de badges com label e cor
+const BADGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  MAIS_VENDIDO: { label: "Mais Vendido", bg: "bg-amber-500", text: "text-white" },
+  NOVIDADE: { label: "Novidade", bg: "bg-emerald-500", text: "text-white" },
+  PROMOCAO: { label: "Promoção", bg: "bg-red-500", text: "text-white" },
+  EXCLUSIVO: { label: "Exclusivo", bg: "bg-purple-600", text: "text-white" },
+};
+
 interface ProductCardProps {
   product: {
     slug: string;
@@ -8,6 +16,7 @@ interface ProductCardProps {
     price: string | number;
     mainImage: string;
     stock?: number | null;
+    badge?: string | null;
     category?: {
       name: string;
     };
@@ -22,6 +31,10 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   // Esgotado: stock é 0 (não null — null significa sem controle de estoque)
   const isOutOfStock = product.stock === 0;
+  // Urgência: estoque baixo (1-3 unidades)
+  const isLowStock = product.stock !== null && product.stock !== undefined && product.stock > 0 && product.stock <= 3;
+  // Badge do produto (configurável pelo admin)
+  const badgeInfo = product.badge && product.badge !== "NONE" ? BADGE_CONFIG[product.badge] : null;
 
   return (
     <Link
@@ -38,12 +51,29 @@ export default function ProductCard({ product }: ProductCardProps) {
           className={`object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? "opacity-60" : ""}`}
         />
 
-        {/* Tag "Esgotado" */}
-        {isOutOfStock && (
-          <div className="absolute top-2 left-2 bg-neutral-900 text-white text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">
-            Esgotado
-          </div>
-        )}
+        {/* Badges empilhados no canto superior esquerdo */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+          {/* Badge de status do produto (admin define) */}
+          {badgeInfo && !isOutOfStock && (
+            <span className={`${badgeInfo.bg} ${badgeInfo.text} text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded shadow-sm`}>
+              {badgeInfo.label}
+            </span>
+          )}
+
+          {/* Tag "Esgotado" */}
+          {isOutOfStock && (
+            <span className="bg-neutral-900 text-white text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">
+              Esgotado
+            </span>
+          )}
+
+          {/* Urgência de estoque baixo */}
+          {isLowStock && (
+            <span className="bg-amber-100 text-amber-800 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded shadow-sm">
+              ⚡ Últimas {product.stock} un.
+            </span>
+          )}
+        </div>
 
         {/* Overlay sutil no hover */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />

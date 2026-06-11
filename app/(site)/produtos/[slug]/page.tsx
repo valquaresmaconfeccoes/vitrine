@@ -83,6 +83,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const hasVariants = product.variants.length > 0;
 
   // Schema.org structured data — ajuda o Google a entender que é um produto
+  const isOutOfStock = product.stock === 0;
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -93,7 +94,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
       "@type": "Offer",
       price: Number(product.price),
       priceCurrency: "BRL",
-      availability: "https://schema.org/InStock",
+      availability: isOutOfStock
+        ? "https://schema.org/OutOfStock"
+        : "https://schema.org/InStock",
       seller: {
         "@type": "Organization",
         name: "Val Quaresma",
@@ -155,13 +158,29 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             {/* Coluna direita — Informações */}
             <div className="flex flex-col">
-              {/* Categoria */}
-              <Link
-                href={`/produtos?categoria=${product.category.slug}`}
-                className="text-sm uppercase tracking-wider text-amber-600 font-medium hover:text-amber-700 transition-colors w-fit"
-              >
-                {product.category.name}
-              </Link>
+              {/* Badge + Categoria */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link
+                  href={`/produtos?categoria=${product.category.slug}`}
+                  className="text-sm uppercase tracking-wider text-amber-600 font-medium hover:text-amber-700 transition-colors w-fit"
+                >
+                  {product.category.name}
+                </Link>
+                {product.badge && product.badge !== "NONE" && (() => {
+                  const badges: Record<string, { label: string; bg: string; text: string }> = {
+                    MAIS_VENDIDO: { label: "Mais Vendido", bg: "bg-amber-500", text: "text-white" },
+                    NOVIDADE: { label: "Novidade", bg: "bg-emerald-500", text: "text-white" },
+                    PROMOCAO: { label: "Promoção", bg: "bg-red-500", text: "text-white" },
+                    EXCLUSIVO: { label: "Exclusivo", bg: "bg-purple-600", text: "text-white" },
+                  };
+                  const b = badges[product.badge];
+                  return b ? (
+                    <span className={`${b.bg} ${b.text} text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded`}>
+                      {b.label}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
 
               {/* Nome do produto */}
               <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-neutral-900 font-serif">

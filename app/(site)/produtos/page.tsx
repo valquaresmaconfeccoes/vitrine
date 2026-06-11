@@ -113,6 +113,7 @@ export default async function ProdutosPage({ searchParams }: PageProps) {
                   price: product.price.toString(),
                   mainImage: product.mainImage,
                   stock: product.stock,
+                  badge: product.badge,
                   category: product.category,
                 }}
               />

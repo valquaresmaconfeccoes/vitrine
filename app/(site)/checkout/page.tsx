@@ -217,6 +217,42 @@ export default function CheckoutPage() {
                   className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-semibold text-lg rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {processing ? "Processando..." : `Pagar ${fmt(total)}`}
                 </button>
+
+                {/* Trust Badges — Sinais de confiança */}
+                <div className="mt-4 pt-4 border-t border-neutral-100">
+                  <div className="flex items-center justify-center gap-4 flex-wrap">
+                    {/* Cadeado SSL */}
+                    <div className="flex items-center gap-1.5 text-neutral-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <span className="text-[11px] font-medium">Conexão segura</span>
+                    </div>
+
+                    {/* Pix */}
+                    <div className="flex items-center gap-1.5 text-neutral-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-600">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+                        <path d="m9 12 2 2 4-4" />
+                      </svg>
+                      <span className="text-[11px] font-medium">Pix protegido</span>
+                    </div>
+
+                    {/* Mercado Pago */}
+                    <div className="flex items-center gap-1.5 text-neutral-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                        <rect width="20" height="14" x="2" y="5" rx="2" />
+                        <line x1="2" x2="22" y1="10" y2="10" />
+                      </svg>
+                      <span className="text-[11px] font-medium">Mercado Pago</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-center text-neutral-400 mt-2">
+                    Seus dados são criptografados e protegidos
+                  </p>
+                </div>
               </div>
             )}
           </div>

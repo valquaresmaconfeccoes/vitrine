@@ -53,6 +53,8 @@ export default async function FeaturedProducts() {
                 slug: product.slug,
                 price: product.price.toString(),
                 mainImage: product.mainImage,
+                stock: product.stock,
+                badge: product.badge,
                 category: product.category,
               }}
               priority={index < 2}
