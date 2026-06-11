@@ -11,19 +11,6 @@ const navigation = [
   { name: "Contato", href: "/contato" },
 ];
 
-/**
- * Header — Mobile-first
- *
- * Mobile (base):
- * - Logo centralizado e pequeno
- * - Hamburguer à direita
- * - Menu fullscreen elegante
- *
- * Desktop (lg+):
- * - Logo à esquerda
- * - Nav central
- * - CTA à direita
- */
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -53,19 +40,85 @@ export default function Header() {
       >
         <div className="container-padded">
           <div className="flex items-center justify-between">
-            {/* Logo */}
+
+            {/* ===== MOBILE LAYOUT ===== */}
+
+            {/* Esquerda mobile: hamburguer + logo */}
+            <div className="flex items-center gap-3 lg:hidden">
+              {/* Hamburguer */}
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="text-gold p-1 -ml-1"
+                aria-label="Abrir menu"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                </svg>
+              </button>
+
+              {/* Logo mobile */}
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex flex-col items-start"
+              >
+                <span className={`
+                  font-serif text-gold tracking-wider transition-all duration-300
+                  ${isScrolled ? "text-xl" : "text-2xl"}
+                `}>
+                  Val Quaresma
+                </span>
+              </Link>
+            </div>
+
+            {/* Direita mobile: lupa + carrinho + conta */}
+            <div className="flex items-center gap-3 lg:hidden">
+              {/* Lupa */}
+              <Link href="/produtos" className="text-gold/80 hover:text-gold transition-colors p-1" aria-label="Buscar produtos">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z" />
+                </svg>
+              </Link>
+
+              {/* Carrinho */}
+              <Link href="/carrinho" className="relative text-gold hover:text-gold-light transition-colors p-1" aria-label="Carrinho">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gold text-noir text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartCount > 9 ? "9+" : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Conta */}
+              <Link
+                href={customer ? "/minha-conta" : "/conta/login"}
+                className="text-gold/80 hover:text-gold transition-colors p-1"
+                aria-label={customer ? "Minha conta" : "Entrar"}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* ===== DESKTOP LAYOUT (inalterado) ===== */}
+
+            {/* Logo desktop */}
             <Link
               href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex flex-col items-start"
+              className="hidden lg:flex flex-col items-start"
             >
               <span className={`
                 font-serif text-gold tracking-wider transition-all duration-300
-                ${isScrolled ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl lg:text-4xl"}
+                ${isScrolled ? "text-2xl" : "text-3xl lg:text-4xl"}
               `}>
                 Val Quaresma
               </span>
-              <span className="hidden sm:block text-[9px] lg:text-[10px] uppercase tracking-widest text-gold-light/70 -mt-0.5">
+              <span className="text-[9px] lg:text-[10px] uppercase tracking-widest text-gold-light/70 -mt-0.5">
                 Moda Feminina
               </span>
             </Link>
@@ -89,7 +142,7 @@ export default function Header() {
               ))}
             </nav>
 
-            {/* CTA desktop + carrinho + conta */}
+            {/* CTA desktop */}
             <div className="hidden lg:flex items-center gap-4">
               <Link href={customer ? "/minha-conta" : "/conta/login"}
                 className="text-[10px] uppercase tracking-widest text-white/80 hover:text-gold transition-colors">
@@ -108,22 +161,11 @@ export default function Header() {
               </Link>
             </div>
 
-            {/* Hamburguer mobile */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden text-gold p-2 -mr-2"
-              aria-label="Abrir menu"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-              </svg>
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Menu mobile fullscreen */}
+      {/* Menu mobile fullscreen — inalterado */}
       <div className={`
         fixed inset-0 z-50 lg:hidden bg-noir
         transition-opacity duration-300
