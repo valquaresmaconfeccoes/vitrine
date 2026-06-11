@@ -205,7 +205,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
               {/* Botões de ação — CTA principal */}
               <div className="mt-8 sticky bottom-4 lg:static space-y-3">
-                <AddToCartButton productId={product.id} />
+                <AddToCartButton
+                  productId={product.id}
+                  stock={product.stock}
+                  hasVariants={hasVariants}
+                />
                 <WhatsAppProductButton
                   productName={product.name}
                   productSlug={product.slug}

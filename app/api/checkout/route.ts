@@ -47,6 +47,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Carrinho vazio." }, { status: 400 });
     }
 
+    // VALIDAÇÃO DE ESTOQUE — Crítica para evitar overselling
+    for (const item of cart.items) {
+      const stock = item.variant ? item.variant.stock : item.product.stock;
+      const active = item.variant ? item.variant.active : item.product.active;
+      const name = item.variant ? `${item.product.name} (${item.variant.name})` : item.product.name;
+
+      if (!active) {
+        return NextResponse.json({ error: `${name} não está mais disponível.` }, { status: 400 });
+      }
+
+      // stock null = sob encomenda (ilimitado). Não checa.
+      if (stock !== null && item.quantity > stock) {
+        if (stock === 0) {
+          return NextResponse.json({
+            error: `${name} esgotou. Remova do carrinho para continuar.`,
+          }, { status: 400 });
+        }
+        return NextResponse.json({
+          error: `Apenas ${stock} ${stock === 1 ? "unidade disponível" : "unidades disponíveis"} de ${name}. Ajuste a quantidade no carrinho.`,
+        }, { status: 400 });
+      }
+    }
+
     // Cria endereço se não for retirada
     let addressId: string | null = null;
     if (shippingMethod !== "RETIRADA") {
