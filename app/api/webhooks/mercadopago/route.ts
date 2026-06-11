@@ -61,6 +61,36 @@ export async function POST(request: Request) {
     if (paymentStatus === "approved" || paymentStatus === "processed") {
       updateData.status = "PAYMENT_APPROVED";
       updateData.paidAt = new Date();
+
+      // DECREMENTO DE ESTOQUE — apenas se o pedido ainda não foi processado
+      // (idempotência: o MP pode mandar o webhook múltiplas vezes)
+      if (order.status !== "PAYMENT_APPROVED") {
+        const orderItems = await prisma.orderItem.findMany({
+          where: { orderId: order.id },
+          select: { productId: true, variantId: true, quantity: true },
+        });
+
+        // Transação atômica: tudo ou nada
+        await prisma.$transaction(
+          orderItems.map((item) => {
+            if (item.variantId) {
+              // Produto com variante → decrementa variant
+              return prisma.variant.update({
+                where: { id: item.variantId },
+                data: { stock: { decrement: item.quantity } },
+              });
+            } else {
+              // Produto simples → decrementa product
+              return prisma.product.update({
+                where: { id: item.productId },
+                data: { stock: { decrement: item.quantity } },
+              });
+            }
+          })
+        );
+
+        console.log(`[WEBHOOK] Estoque atualizado para ${orderItems.length} itens do pedido ${order.orderNumber}`);
+      }
     } else if (paymentStatus === "rejected" || paymentStatus === "cancelled") {
       updateData.status = "CANCELLED";
     }

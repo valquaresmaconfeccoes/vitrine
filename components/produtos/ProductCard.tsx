@@ -7,29 +7,21 @@ interface ProductCardProps {
     name: string;
     price: string | number;
     mainImage: string;
+    stock?: number | null;
     category?: {
       name: string;
     };
   };
 }
 
-/**
- * ProductCard — Card individual de produto
- *
- * Usado em:
- * - /produtos (listagem geral)
- * - Home (FeaturedProducts)
- *
- * Performance:
- * - Next/Image com sizes responsivo → carrega só o tamanho necessário
- * - Link prefetch → transição instantânea para a página de detalhe
- * - Hover com scale suave → feedback visual sem layout shift
- */
 export default function ProductCard({ product }: ProductCardProps) {
   const formattedPrice = new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
   }).format(Number(product.price));
+
+  // Esgotado: stock é 0 (não null — null significa sem controle de estoque)
+  const isOutOfStock = product.stock === 0;
 
   return (
     <Link
@@ -43,8 +35,15 @@ export default function ProductCard({ product }: ProductCardProps) {
           alt={product.name}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          className={`object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? "opacity-60" : ""}`}
         />
+
+        {/* Tag "Esgotado" */}
+        {isOutOfStock && (
+          <div className="absolute top-2 left-2 bg-neutral-900 text-white text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">
+            Esgotado
+          </div>
+        )}
 
         {/* Overlay sutil no hover */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />

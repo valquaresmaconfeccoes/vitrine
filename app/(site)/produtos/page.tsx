@@ -112,6 +112,7 @@ export default async function ProdutosPage({ searchParams }: PageProps) {
                   name: product.name,
                   price: product.price.toString(),
                   mainImage: product.mainImage,
+                  stock: product.stock,
                   category: product.category,
                 }}
               />

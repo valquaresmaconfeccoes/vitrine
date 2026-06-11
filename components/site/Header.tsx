@@ -91,7 +91,7 @@ export default function Header() {
 
             {/* CTA desktop + carrinho + conta */}
             <div className="hidden lg:flex items-center gap-4">
-              <Link href={customer ? "/conta/login" : "/conta/login"}
+              <Link href={customer ? "/minha-conta" : "/conta/login"}
                 className="text-[10px] uppercase tracking-widest text-white/80 hover:text-gold transition-colors">
                 {customer ? customer.name.split(" ")[0] : "Entrar"}
               </Link>
@@ -169,7 +169,7 @@ export default function Header() {
               Carrinho {cartCount > 0 && `(${cartCount})`}
             </Link>
             <Link
-              href={customer ? "/conta/login" : "/conta/login"}
+              href={customer ? "/minha-conta" : "/conta/login"}
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center justify-center gap-2 w-full py-3.5 bg-gold text-noir text-xs uppercase tracking-widest font-medium hover:bg-gold-light transition-colors duration-300"
             >

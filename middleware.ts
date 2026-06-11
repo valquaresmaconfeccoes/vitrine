@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isAdminLoginPage = pathname === "/login";
-  const isCustomerProtected = ["/carrinho", "/checkout"].some((p) => pathname.startsWith(p));
+  const isCustomerProtected = ["/carrinho", "/checkout", "/minha-conta"].some((p) => pathname.startsWith(p));
   const isCustomerAuthPage = ["/conta/login", "/conta/cadastro"].includes(pathname);
 
   // --- ADMIN AUTH (NextAuth) ---
@@ -80,6 +80,7 @@ export const config = {
     "/login",
     "/carrinho",
     "/checkout/:path*",
+    "/minha-conta/:path*",
     "/conta/login",
     "/conta/cadastro",
   ],
