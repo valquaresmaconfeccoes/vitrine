@@ -1,19 +1,22 @@
 /**
- * correios.ts — Cálculo de frete por região
+ * correios.ts — Cálculo de frete via Melhor Envio
  *
- * O webservice antigo dos Correios (CalcPrecoPrazo.aspx) foi
- * descontinuado em 2024. A nova API exige contrato corporativo.
+ * Integração real com a API do Melhor Envio para cotação de frete.
+ * Retorna preços e prazos reais de PAC, SEDEX, Jadlog e outras
+ * transportadoras disponíveis para o CEP de destino.
  *
- * Solução pragmática: tabela própria por região (UF) baseada
- * em preços médios de mercado dos Correios + retirada na loja.
+ * Fallback: se a API falhar, usa tabela por UF (estimativa).
  *
  * Origem: Belém, PA (CEP 66079-720)
- *
- * Para evoluir: integrar Melhor Envio (https://melhorenvio.com.br)
- * que oferece API gratuita até 100 cotações/mês com cadastro.
  */
 
 const CEP_ORIGEM = "66079720";
+
+const MELHOR_ENVIO_TOKEN = process.env.MELHOR_ENVIO_TOKEN || "";
+const ME_SANDBOX = process.env.ME_SANDBOX !== "false"; // default sandbox
+const ME_BASE_URL = ME_SANDBOX
+  ? "https://sandbox.melhorenvio.com.br"
+  : "https://melhorenvio.com.br";
 
 export interface ShippingOption {
   service: string;
@@ -22,50 +25,6 @@ export interface ShippingOption {
   deadline: string;
   deadlineDays: number;
 }
-
-// Tabela por região — baseado em peso médio até 1kg
-// Norte é mais barato (origem), Sul/Sudeste mais caro
-const TABELA_FRETE: Record<string, { pac: number; pacDias: number; sedex: number; sedexDias: number }> = {
-  // Norte (mais próximo da origem)
-  AC: { pac: 28, pacDias: 10, sedex: 52, sedexDias: 6 },
-  AM: { pac: 22, pacDias: 8,  sedex: 45, sedexDias: 5 },
-  AP: { pac: 20, pacDias: 7,  sedex: 42, sedexDias: 4 },
-  PA: { pac: 15, pacDias: 5,  sedex: 28, sedexDias: 2 },
-  RO: { pac: 30, pacDias: 11, sedex: 55, sedexDias: 6 },
-  RR: { pac: 32, pacDias: 12, sedex: 58, sedexDias: 7 },
-  TO: { pac: 25, pacDias: 9,  sedex: 48, sedexDias: 5 },
-
-  // Nordeste
-  AL: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
-  BA: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
-  CE: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
-  MA: { pac: 22, pacDias: 6,  sedex: 42, sedexDias: 3 },
-  PB: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
-  PE: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
-  PI: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
-  RN: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
-  SE: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
-
-  // Centro-Oeste
-  DF: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
-  GO: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
-  MT: { pac: 35, pacDias: 11, sedex: 62, sedexDias: 6 },
-  MS: { pac: 38, pacDias: 12, sedex: 65, sedexDias: 7 },
-
-  // Sudeste
-  ES: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
-  MG: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
-  RJ: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
-  SP: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
-
-  // Sul (mais distante)
-  PR: { pac: 42, pacDias: 12, sedex: 70, sedexDias: 7 },
-  SC: { pac: 45, pacDias: 13, sedex: 72, sedexDias: 7 },
-  RS: { pac: 48, pacDias: 14, sedex: 75, sedexDias: 8 },
-};
-
-// Padrão se UF não for identificada
-const TABELA_PADRAO = { pac: 40, pacDias: 12, sedex: 68, sedexDias: 7 };
 
 /**
  * Consulta CEP via ViaCEP (gratuito, sem autenticação)
@@ -101,19 +60,19 @@ export async function consultarCep(cep: string) {
 }
 
 /**
- * Calcula frete por região baseado no UF do CEP de destino.
- * Para pacotes acima de 1kg, adiciona R$ 5 por kg extra.
+ * Calcula frete via Melhor Envio (API real).
+ * Se falhar, cai no fallback com tabela por UF.
  */
 export async function calcularFrete(
   cepDestino: string,
   peso: number,        // gramas
-  _comprimento: number, // não usado na tabela própria, mantido pela compatibilidade
-  _altura: number,
-  _largura: number
+  comprimento: number, // cm
+  altura: number,      // cm
+  largura: number      // cm
 ): Promise<ShippingOption[]> {
   const cleanCep = cepDestino.replace(/\D/g, "");
 
-  // Sempre disponibiliza retirada na loja
+  // Retirada na loja — sempre disponível
   const options: ShippingOption[] = [
     {
       service: "RETIRADA",
@@ -124,51 +83,39 @@ export async function calcularFrete(
     },
   ];
 
-  // Descobre o UF a partir do CEP
-  let uf = "";
-  try {
-    const address = await consultarCep(cleanCep);
-    uf = address.state;
-  } catch {
-    // Sem UF, usa tabela padrão
-  }
-
-  const tabela = TABELA_FRETE[uf] || TABELA_PADRAO;
-
-  // Calcula peso extra (acima de 1kg, R$ 5 por kg)
-  const pesoKg = Math.max(peso / 1000, 0.3);
-  const pesoExtra = Math.max(0, Math.ceil(pesoKg - 1));
-  const adicionalPeso = pesoExtra * 5;
-
-  // Mesmo CEP de origem = retirada gratuita destacada (sem PAC/SEDEX caro)
-  // Para CEPs em Belém, oferece também entrega expressa local
+  // Entrega local em Belém — motoboy
   if (cleanCep.startsWith("660") || cleanCep.startsWith("671") || cleanCep.startsWith("672")) {
     options.push({
       service: "LOCAL",
       name: "Entrega em Belém — Motoboy",
-      price: 15.0 + adicionalPeso,
+      price: 15.0,
       deadline: "1 a 2 dias úteis",
       deadlineDays: 2,
     });
   }
 
-  // PAC
-  options.push({
-    service: "PAC",
-    name: "PAC — Econômico",
-    price: tabela.pac + adicionalPeso,
-    deadline: `${tabela.pacDias} a ${tabela.pacDias + 2} dias úteis`,
-    deadlineDays: tabela.pacDias,
-  });
-
-  // SEDEX
-  options.push({
-    service: "SEDEX",
-    name: "SEDEX — Expresso",
-    price: tabela.sedex + adicionalPeso,
-    deadline: `${tabela.sedexDias} a ${tabela.sedexDias + 1} dias úteis`,
-    deadlineDays: tabela.sedexDias,
-  });
+  // Tentar Melhor Envio
+  if (MELHOR_ENVIO_TOKEN) {
+    try {
+      const meOptions = await calcularFreteViaMelhorEnvio(
+        cleanCep,
+        peso,
+        comprimento,
+        altura,
+        largura
+      );
+      options.push(...meOptions);
+    } catch (err) {
+      console.error("[MELHOR_ENVIO_ERROR]", err);
+      // Fallback: tabela por UF
+      const fallbackOptions = await calcularFretePorTabela(cleanCep, peso);
+      options.push(...fallbackOptions);
+    }
+  } else {
+    // Sem token: usar tabela
+    const fallbackOptions = await calcularFretePorTabela(cleanCep, peso);
+    options.push(...fallbackOptions);
+  }
 
   // Ordena: retirada primeiro, depois por preço
   return options.sort((a, b) => {
@@ -176,4 +123,163 @@ export async function calcularFrete(
     if (b.service === "RETIRADA") return 1;
     return a.price - b.price;
   });
+}
+
+/**
+ * Cotação real via API do Melhor Envio
+ */
+async function calcularFreteViaMelhorEnvio(
+  cepDestino: string,
+  peso: number,      // gramas
+  comprimento: number,
+  altura: number,
+  largura: number
+): Promise<ShippingOption[]> {
+  // Dimensões mínimas do Melhor Envio
+  const safeHeight = Math.max(altura || 4, 4);    // mín 2cm, usamos 4 por segurança
+  const safeWidth = Math.max(largura || 15, 11);
+  const safeLength = Math.max(comprimento || 20, 16);
+  const safeWeight = Math.max((peso || 300) / 1000, 0.3); // kg, mín 0.3
+
+  const body = {
+    from: { postal_code: CEP_ORIGEM },
+    to: { postal_code: cepDestino },
+    packages: [
+      {
+        height: safeHeight,
+        width: safeWidth,
+        length: safeLength,
+        weight: safeWeight,
+      },
+    ],
+  };
+
+  const res = await fetch(`${ME_BASE_URL}/api/v2/me/shipment/calculate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${MELHOR_ENVIO_TOKEN}`,
+      Accept: "application/json",
+      "User-Agent": "ValQuaresma contato@valquaresma.com.br",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Melhor Envio HTTP ${res.status}: ${text}`);
+  }
+
+  const data = await res.json();
+
+  if (!Array.isArray(data)) {
+    throw new Error("Resposta inesperada do Melhor Envio");
+  }
+
+  const options: ShippingOption[] = [];
+
+  for (const item of data) {
+    // Pular serviços com erro ou sem preço
+    if (item.error || !item.price) continue;
+
+    const price = parseFloat(item.custom_price || item.price);
+    if (isNaN(price) || price <= 0) continue;
+
+    const deliveryDays = parseInt(item.delivery_time, 10) || 10;
+    const companyName = item.company?.name || "";
+    const serviceName = item.name || "";
+
+    // Montar nome amigável
+    let friendlyName = serviceName;
+    if (companyName && !serviceName.includes(companyName)) {
+      friendlyName = `${serviceName} — ${companyName}`;
+    }
+
+    // Service ID para identificação única
+    const serviceId = item.id?.toString() || `ME_${serviceName.replace(/\s/g, "_")}`;
+
+    options.push({
+      service: serviceId,
+      name: friendlyName,
+      price: Math.round(price * 100) / 100, // arredondar centavos
+      deadline: `${deliveryDays} a ${deliveryDays + 2} dias úteis`,
+      deadlineDays: deliveryDays,
+    });
+  }
+
+  if (options.length === 0) {
+    throw new Error("Nenhuma opção de frete disponível pelo Melhor Envio");
+  }
+
+  return options;
+}
+
+// =====================================================
+// FALLBACK — Tabela por UF (usado quando ME falha)
+// =====================================================
+
+const TABELA_FRETE: Record<string, { pac: number; pacDias: number; sedex: number; sedexDias: number }> = {
+  AC: { pac: 28, pacDias: 10, sedex: 52, sedexDias: 6 },
+  AM: { pac: 22, pacDias: 8,  sedex: 45, sedexDias: 5 },
+  AP: { pac: 20, pacDias: 7,  sedex: 42, sedexDias: 4 },
+  PA: { pac: 15, pacDias: 5,  sedex: 28, sedexDias: 2 },
+  RO: { pac: 30, pacDias: 11, sedex: 55, sedexDias: 6 },
+  RR: { pac: 32, pacDias: 12, sedex: 58, sedexDias: 7 },
+  TO: { pac: 25, pacDias: 9,  sedex: 48, sedexDias: 5 },
+  AL: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
+  BA: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  CE: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
+  MA: { pac: 22, pacDias: 6,  sedex: 42, sedexDias: 3 },
+  PB: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  PE: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  PI: { pac: 24, pacDias: 7,  sedex: 45, sedexDias: 4 },
+  RN: { pac: 26, pacDias: 8,  sedex: 48, sedexDias: 4 },
+  SE: { pac: 28, pacDias: 9,  sedex: 52, sedexDias: 5 },
+  DF: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
+  GO: { pac: 32, pacDias: 9,  sedex: 58, sedexDias: 5 },
+  MT: { pac: 35, pacDias: 11, sedex: 62, sedexDias: 6 },
+  MS: { pac: 38, pacDias: 12, sedex: 65, sedexDias: 7 },
+  ES: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
+  MG: { pac: 35, pacDias: 10, sedex: 62, sedexDias: 5 },
+  RJ: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
+  SP: { pac: 38, pacDias: 11, sedex: 65, sedexDias: 6 },
+  PR: { pac: 42, pacDias: 12, sedex: 70, sedexDias: 7 },
+  SC: { pac: 45, pacDias: 13, sedex: 72, sedexDias: 7 },
+  RS: { pac: 48, pacDias: 14, sedex: 75, sedexDias: 8 },
+};
+
+const TABELA_PADRAO = { pac: 40, pacDias: 12, sedex: 68, sedexDias: 7 };
+
+async function calcularFretePorTabela(
+  cepDestino: string,
+  peso: number
+): Promise<ShippingOption[]> {
+  let uf = "";
+  try {
+    const address = await consultarCep(cepDestino);
+    uf = address.state;
+  } catch { /* sem UF, usa padrão */ }
+
+  const tabela = TABELA_FRETE[uf] || TABELA_PADRAO;
+  const pesoKg = Math.max(peso / 1000, 0.3);
+  const pesoExtra = Math.max(0, Math.ceil(pesoKg - 1));
+  const adicionalPeso = pesoExtra * 5;
+
+  return [
+    {
+      service: "PAC",
+      name: "PAC — Econômico (estimativa)",
+      price: tabela.pac + adicionalPeso,
+      deadline: `${tabela.pacDias} a ${tabela.pacDias + 2} dias úteis`,
+      deadlineDays: tabela.pacDias,
+    },
+    {
+      service: "SEDEX",
+      name: "SEDEX — Expresso (estimativa)",
+      price: tabela.sedex + adicionalPeso,
+      deadline: `${tabela.sedexDias} a ${tabela.sedexDias + 1} dias úteis`,
+      deadlineDays: tabela.sedexDias,
+    },
+  ];
 }
