@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
+import AccountSidebar from "./AccountSidebar";
 
 const navigation = [
   { name: "Início", href: "/" },
@@ -13,6 +14,7 @@ const navigation = [
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { customer, cartCount } = useCart();
 
@@ -45,7 +47,6 @@ export default function Header() {
 
             {/* Esquerda mobile: hamburguer + logo */}
             <div className="flex items-center gap-3 lg:hidden">
-              {/* Hamburguer */}
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -57,7 +58,6 @@ export default function Header() {
                 </svg>
               </button>
 
-              {/* Logo mobile */}
               <Link
                 href="/"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -74,14 +74,12 @@ export default function Header() {
 
             {/* Direita mobile: lupa + carrinho + conta */}
             <div className="flex items-center gap-3 lg:hidden">
-              {/* Lupa */}
               <Link href="/produtos" className="text-gold/80 hover:text-gold transition-colors p-1" aria-label="Buscar produtos">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z" />
                 </svg>
               </Link>
 
-              {/* Carrinho */}
               <Link href="/carrinho" className="relative text-gold hover:text-gold-light transition-colors p-1" aria-label="Carrinho">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
@@ -93,25 +91,21 @@ export default function Header() {
                 )}
               </Link>
 
-              {/* Conta */}
-              <Link
-                href={customer ? "/minha-conta" : "/conta/login"}
+              {/* Conta — abre sidebar ao invés de navegar */}
+              <button
+                onClick={() => setIsAccountOpen(true)}
                 className="text-gold/80 hover:text-gold transition-colors p-1"
                 aria-label={customer ? "Minha conta" : "Entrar"}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                 </svg>
-              </Link>
+              </button>
             </div>
 
-            {/* ===== DESKTOP LAYOUT (inalterado) ===== */}
+            {/* ===== DESKTOP LAYOUT ===== */}
 
-            {/* Logo desktop */}
-            <Link
-              href="/"
-              className="hidden lg:flex flex-col items-start"
-            >
+            <Link href="/" className="hidden lg:flex flex-col items-start">
               <span className={`
                 font-serif text-gold tracking-wider transition-all duration-300
                 ${isScrolled ? "text-2xl" : "text-3xl lg:text-4xl"}
@@ -123,7 +117,6 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* Nav desktop */}
             <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
               {navigation.map((item) => (
                 <Link
@@ -142,12 +135,14 @@ export default function Header() {
               ))}
             </nav>
 
-            {/* CTA desktop */}
             <div className="hidden lg:flex items-center gap-4">
-              <Link href={customer ? "/minha-conta" : "/conta/login"}
-                className="text-[10px] uppercase tracking-widest text-white/80 hover:text-gold transition-colors">
+              {/* Conta desktop — também abre sidebar */}
+              <button
+                onClick={() => setIsAccountOpen(true)}
+                className="text-[10px] uppercase tracking-widest text-white/80 hover:text-gold transition-colors cursor-pointer"
+              >
                 {customer ? customer.name.split(" ")[0] : "Entrar"}
-              </Link>
+              </button>
 
               <Link href="/carrinho" className="relative text-gold hover:text-gold-light transition-colors p-1">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -165,7 +160,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Menu mobile fullscreen — inalterado */}
+      {/* Menu mobile fullscreen */}
       <div className={`
         fixed inset-0 z-50 lg:hidden bg-noir
         transition-opacity duration-300
@@ -210,16 +205,21 @@ export default function Header() {
             >
               Carrinho {cartCount > 0 && `(${cartCount})`}
             </Link>
-            <Link
-              href={customer ? "/minha-conta" : "/conta/login"}
-              onClick={() => setIsMobileMenuOpen(false)}
+            <button
+              onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setIsAccountOpen(true), 300); }}
               className="flex items-center justify-center gap-2 w-full py-3.5 bg-gold text-noir text-xs uppercase tracking-widest font-medium hover:bg-gold-light transition-colors duration-300"
             >
               {customer ? `Minha Conta` : "Entrar / Cadastrar"}
-            </Link>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Account sidebar */}
+      <AccountSidebar
+        isOpen={isAccountOpen}
+        onClose={() => setIsAccountOpen(false)}
+      />
     </>
   );
 }
