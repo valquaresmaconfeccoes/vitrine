@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { useCart } from "@/contexts/CartContext";
 
 interface CartItemData {
@@ -12,6 +13,11 @@ interface CartItemData {
 }
 interface ShippingOption { service: string; name: string; price: number; deadline: string }
 interface AddressData { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string }
+interface SavedAddress {
+  id: string; label: string; recipientName: string; cep: string;
+  street: string; number: string; complement: string | null;
+  neighborhood: string; city: string; state: string;
+}
 
 export default function CheckoutPage() {
   const { customer, refreshCart } = useCart();
@@ -20,6 +26,11 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
+
+  // Endereços salvos
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+  const [useNewAddress, setUseNewAddress] = useState(false);
 
   const [address, setAddress] = useState<AddressData>({ cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" });
   const [cepLoading, setCepLoading] = useState(false);
@@ -31,9 +42,25 @@ export default function CheckoutPage() {
 
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+  // Carregar carrinho + endereços salvos
   useEffect(() => {
     if (!customer) { router.push("/conta/login"); return; }
-    fetch("/api/cart").then(r => r.json()).then(d => { setItems(d.cart?.items || []); setLoading(false); });
+
+    Promise.all([
+      fetch("/api/cart").then(r => r.json()),
+      fetch("/api/address").then(r => r.json()),
+    ]).then(([cartData, addrData]) => {
+      setItems(cartData.cart?.items || []);
+      const addrs = addrData.addresses || [];
+      setSavedAddresses(addrs);
+      // Se tem endereço salvo, pré-selecionar o primeiro
+      if (addrs.length > 0) {
+        setSelectedSavedId(addrs[0].id);
+      } else {
+        setUseNewAddress(true);
+      }
+      setLoading(false);
+    });
   }, [customer, router]);
 
   const subtotal = items.reduce((sum, item) => {
@@ -43,23 +70,28 @@ export default function CheckoutPage() {
   const shippingCost = selectedShipping?.price || 0;
   const total = subtotal + shippingCost;
 
-  async function handleCepBlur() {
-    const cep = address.cep.replace(/\D/g, "");
-    if (cep.length !== 8) return;
+  // Calcular frete para um CEP
+  const calcShipping = useCallback(async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
     setCepLoading(true);
     setError("");
+    setShippingOptions([]);
+    setSelectedShipping(null);
+
     try {
       const res = await fetch("/api/shipping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cep,
+          cep: cleanCep,
           items: items.map(i => ({ weight: i.product.weight, width: i.product.width, height: i.product.height, length: i.product.length, quantity: i.quantity })),
         }),
       });
       const data = await res.json();
       if (data.error) { setError(data.error); return; }
-      if (data.address) {
+      if (data.address && useNewAddress) {
         setAddress(prev => ({
           ...prev,
           street: data.address.street || prev.street,
@@ -71,10 +103,40 @@ export default function CheckoutPage() {
       setShippingOptions(data.options || []);
     } catch { setError("Erro ao consultar CEP"); }
     finally { setCepLoading(false); }
+  }, [items, useNewAddress]);
+
+  // Quando seleciona endereço salvo → calcular frete automaticamente
+  useEffect(() => {
+    if (selectedSavedId && !useNewAddress) {
+      const saved = savedAddresses.find(a => a.id === selectedSavedId);
+      if (saved) {
+        setAddress({
+          cep: saved.cep,
+          street: saved.street,
+          number: saved.number,
+          complement: saved.complement || "",
+          neighborhood: saved.neighborhood,
+          city: saved.city,
+          state: saved.state,
+        });
+        calcShipping(saved.cep);
+      }
+    }
+  }, [selectedSavedId, useNewAddress, savedAddresses, calcShipping]);
+
+  // Auto-lookup CEP no novo endereço — dispara ao completar 8 dígitos
+  function handleCepChange(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    let masked = digits;
+    if (digits.length > 5) masked = `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    setAddress(p => ({ ...p, cep: masked }));
+
+    if (digits.length === 8) {
+      calcShipping(digits);
+    }
   }
 
   async function handleCheckout() {
-    // Validações
     if (selectedShipping?.service !== "RETIRADA") {
       if (!address.cep || !address.street || !address.number || !address.neighborhood) {
         setError("Preencha todos os campos do endereço.");
@@ -120,19 +182,87 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
 
-            {/* CEP + FRETE */}
+            {/* 1. ENDEREÇO + FRETE */}
             <div className="bg-white p-6 rounded-xl border border-neutral-200">
-              <h2 className="text-lg font-semibold text-neutral-900 mb-4">1. CEP e frete</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">CEP</label>
-                  <input type="text" maxLength={9} value={address.cep} onChange={e => setAddress(p => ({ ...p, cep: e.target.value }))}
-                    onBlur={handleCepBlur} placeholder="00000-000"
-                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                  {cepLoading && <p className="text-xs text-amber-600 mt-1">Calculando frete...</p>}
-                </div>
-              </div>
+              <h2 className="text-lg font-semibold text-neutral-900 mb-4">1. Endereço e frete</h2>
 
+              {/* Endereços salvos */}
+              {savedAddresses.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {savedAddresses.map(addr => (
+                    <label
+                      key={addr.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedSavedId === addr.id && !useNewAddress
+                          ? "border-amber-500 bg-amber-50"
+                          : "border-neutral-200 hover:border-neutral-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="address"
+                        checked={selectedSavedId === addr.id && !useNewAddress}
+                        onChange={() => { setSelectedSavedId(addr.id); setUseNewAddress(false); }}
+                        className="w-4 h-4 text-amber-600 mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">
+                            {addr.label}
+                          </span>
+                        </div>
+                        <p className="text-sm text-neutral-900 mt-1">
+                          {addr.street}, {addr.number}{addr.complement ? ` — ${addr.complement}` : ""}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {addr.neighborhood} — {addr.city}/{addr.state}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+
+                  {/* Opção: novo endereço */}
+                  <label
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      useNewAddress ? "border-amber-500 bg-amber-50" : "border-neutral-200 hover:border-neutral-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="address"
+                      checked={useNewAddress}
+                      onChange={() => {
+                        setUseNewAddress(true);
+                        setSelectedSavedId(null);
+                        setAddress({ cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" });
+                        setShippingOptions([]);
+                        setSelectedShipping(null);
+                      }}
+                      className="w-4 h-4 text-amber-600"
+                    />
+                    <span className="text-sm font-medium text-neutral-700">Usar outro endereço</span>
+                  </label>
+                </div>
+              )}
+
+              {/* CEP manual (novo endereço ou sem endereços salvos) */}
+              {useNewAddress && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">CEP</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={9}
+                    value={address.cep}
+                    onChange={e => handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                    className="w-full max-w-xs px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  {cepLoading && <p className="text-xs text-amber-600 mt-1 animate-pulse">Calculando frete...</p>}
+                </div>
+              )}
+
+              {/* Opções de envio */}
               {shippingOptions.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-neutral-700 mb-2">Opções de envio:</p>
@@ -153,8 +283,8 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* ENDEREÇO — só se não for retirada */}
-            {selectedShipping && selectedShipping.service !== "RETIRADA" && (
+            {/* 2. ENDEREÇO DETALHADO — só se novo endereço + não retirada */}
+            {useNewAddress && selectedShipping && selectedShipping.service !== "RETIRADA" && (
               <div className="bg-white p-6 rounded-xl border border-neutral-200">
                 <h2 className="text-lg font-semibold text-neutral-900 mb-4">2. Endereço de entrega</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -192,7 +322,7 @@ export default function CheckoutPage() {
             {selectedShipping && (
               <div className="bg-white p-6 rounded-xl border border-neutral-200">
                 <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-                  {selectedShipping.service === "RETIRADA" ? "2." : "3."} Pagamento
+                  {useNewAddress && selectedShipping.service !== "RETIRADA" ? "3." : "2."} Pagamento
                 </h2>
                 <div className="flex gap-3 mb-6">
                   <button onClick={() => setPaymentMethod("pix")}
@@ -218,10 +348,9 @@ export default function CheckoutPage() {
                   {processing ? "Processando..." : `Pagar ${fmt(total)}`}
                 </button>
 
-                {/* Trust Badges — Sinais de confiança */}
+                {/* Trust Badges */}
                 <div className="mt-4 pt-4 border-t border-neutral-100">
                   <div className="flex items-center justify-center gap-4 flex-wrap">
-                    {/* Cadeado SSL */}
                     <div className="flex items-center gap-1.5 text-neutral-500">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -229,8 +358,6 @@ export default function CheckoutPage() {
                       </svg>
                       <span className="text-[11px] font-medium">Conexão segura</span>
                     </div>
-
-                    {/* Pix */}
                     <div className="flex items-center gap-1.5 text-neutral-500">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-600">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
@@ -238,8 +365,6 @@ export default function CheckoutPage() {
                       </svg>
                       <span className="text-[11px] font-medium">Pix protegido</span>
                     </div>
-
-                    {/* Mercado Pago */}
                     <div className="flex items-center gap-1.5 text-neutral-500">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
                         <rect width="20" height="14" x="2" y="5" rx="2" />
@@ -248,7 +373,6 @@ export default function CheckoutPage() {
                       <span className="text-[11px] font-medium">Mercado Pago</span>
                     </div>
                   </div>
-
                   <p className="text-[10px] text-center text-neutral-400 mt-2">
                     Seus dados são criptografados e protegidos
                   </p>
