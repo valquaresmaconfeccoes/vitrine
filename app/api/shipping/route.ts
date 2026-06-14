@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calcularFrete, consultarCep } from "@/lib/correios";
+import { calcularFrete, consultarCep, PackageItem } from "@/lib/correios";
 
 export async function POST(request: Request) {
   try {
@@ -15,26 +15,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "CEP inválido. Digite os 8 números." }, { status: 400 });
     }
 
-    // Calcula peso e dimensões totais do pacote
-    let totalWeight = 300;
-    let maxWidth = 15;
-    let maxHeight = 10;
-    let maxLength = 20;
-
+    // Montar array de pacotes — um por item do carrinho
+    const packages: PackageItem[] = [];
     if (items && Array.isArray(items) && items.length > 0) {
-      totalWeight = 0;
       for (const item of items) {
-        totalWeight += (item.weight || 300) * (item.quantity || 1);
-        maxWidth = Math.max(maxWidth, item.width || 15);
-        maxHeight = Math.max(maxHeight, item.height || 10);
-        maxLength = Math.max(maxLength, item.length || 20);
+        packages.push({
+          weight: item.weight || 300,
+          height: item.height || 10,
+          width: item.width || 15,
+          length: item.length || 20,
+          quantity: item.quantity || 1,
+        });
       }
+    } else {
+      // Fallback: pacote genérico
+      packages.push({ weight: 300, height: 10, width: 15, length: 20, quantity: 1 });
     }
 
-    // Busca endereço e frete em paralelo — se ViaCEP falhar, ainda retorna o frete
+    // Busca endereço e frete em paralelo
     const [addressResult, freightOptions] = await Promise.allSettled([
       consultarCep(cleanCep),
-      calcularFrete(cleanCep, totalWeight, maxLength, maxHeight, maxWidth),
+      calcularFrete(cleanCep, packages),
     ]);
 
     const address =
@@ -54,7 +55,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ address, options });
   } catch (error) {
     console.error("[SHIPPING_ERROR]", error);
-    // Fallback final — sempre retorna algo útil para o cliente
     return NextResponse.json({
       address: { cep: "", street: "", neighborhood: "", city: "", state: "" },
       options: [

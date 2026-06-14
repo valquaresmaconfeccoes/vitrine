@@ -50,6 +50,10 @@ function parseProductForm(formData: FormData) {
   const categoryId = (formData.get("categoryId") as string)?.trim();
   const stock = parseInt((formData.get("stock") as string) || "0", 10);
   const badge = (formData.get("badge") as string) || "NONE";
+  const weight = parseInt((formData.get("weight") as string) || "0", 10);
+  const height = parseInt((formData.get("height") as string) || "0", 10);
+  const width = parseInt((formData.get("width") as string) || "0", 10);
+  const length = parseInt((formData.get("length") as string) || "0", 10);
   const active = formData.get("active") === "on";
   const featured = formData.get("featured") === "on";
 
@@ -80,6 +84,10 @@ function parseProductForm(formData: FormData) {
     categoryId,
     stock,
     badge,
+    weight,
+    height,
+    width,
+    length,
     active,
     featured,
     galleryImages: galleryImages.filter((url) => url.trim() !== ""),
@@ -105,6 +113,21 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
   try {
     const slug = await generateUniqueSlug(data.name);
 
+    // Se dimensões forem 0, herdar da categoria
+    let { weight, height, width, length } = data;
+    if (weight === 0 || height === 0 || width === 0 || length === 0) {
+      const category = await prisma.category.findUnique({
+        where: { id: data.categoryId },
+        select: { defaultWeight: true, defaultHeight: true, defaultWidth: true, defaultLength: true },
+      });
+      if (category) {
+        if (weight === 0) weight = category.defaultWeight;
+        if (height === 0) height = category.defaultHeight;
+        if (width === 0) width = category.defaultWidth;
+        if (length === 0) length = category.defaultLength;
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
         name: data.name,
@@ -115,6 +138,10 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
         categoryId: data.categoryId,
         stock: data.stock,
         badge: data.badge as "NONE" | "MAIS_VENDIDO" | "NOVIDADE" | "PROMOCAO" | "EXCLUSIVO",
+        weight,
+        height,
+        width,
+        length,
         active: data.active,
         featured: data.featured,
         // Cria as imagens da galeria
@@ -167,6 +194,21 @@ export async function updateProduct(
   try {
     const slug = await generateUniqueSlug(data.name, id);
 
+    // Se dimensões forem 0, herdar da categoria
+    let { weight, height, width, length } = data;
+    if (weight === 0 || height === 0 || width === 0 || length === 0) {
+      const category = await prisma.category.findUnique({
+        where: { id: data.categoryId },
+        select: { defaultWeight: true, defaultHeight: true, defaultWidth: true, defaultLength: true },
+      });
+      if (category) {
+        if (weight === 0) weight = category.defaultWeight;
+        if (height === 0) height = category.defaultHeight;
+        if (width === 0) width = category.defaultWidth;
+        if (length === 0) length = category.defaultLength;
+      }
+    }
+
     // Estratégia para galeria e variantes: deletar todas e recriar
     // (mais simples que sincronizar — performance OK para poucos itens)
     await prisma.$transaction([
@@ -183,6 +225,10 @@ export async function updateProduct(
           categoryId: data.categoryId,
           stock: data.stock,
           badge: data.badge as "NONE" | "MAIS_VENDIDO" | "NOVIDADE" | "PROMOCAO" | "EXCLUSIVO",
+          weight,
+          height,
+          width,
+          length,
           active: data.active,
           featured: data.featured,
           images: {

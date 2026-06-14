@@ -13,18 +13,13 @@ interface CategoryFormProps {
     description: string | null;
     image: string | null;
     order: number;
+    defaultWeight: number;
+    defaultHeight: number;
+    defaultWidth: number;
+    defaultLength: number;
   };
 }
 
-/**
- * Formulário de Categoria — usado tanto para criar quanto editar
- *
- * Se receber `category` → modo edição (chama updateCategory)
- * Se não receber → modo criação (chama createCategory)
- *
- * Estado da imagem é gerenciado separadamente porque vem do
- * componente ImageUpload (que faz o upload assíncrono).
- */
 export default function CategoryForm({ category }: CategoryFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -37,7 +32,7 @@ export default function CategoryForm({ category }: CategoryFormProps) {
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    formData.set("image", image); // garante que a imagem do state vai no FormData
+    formData.set("image", image);
 
     startTransition(async () => {
       const result = isEditing
@@ -55,7 +50,7 @@ export default function CategoryForm({ category }: CategoryFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl">
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Coluna esquerda: dados textuais */}
         <div className="space-y-6">
@@ -98,6 +93,51 @@ export default function CategoryForm({ category }: CategoryFormProps) {
           />
         </div>
       </div>
+
+      {/* ============ SEÇÃO: EMBALAGEM PADRÃO ============ */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">
+          📦 Embalagem Padrão
+        </h2>
+        <p className="text-sm text-warm-gray">
+          Dimensões e peso padrão para produtos desta categoria. Se um produto não tiver dimensões próprias, estas serão usadas no cálculo do frete.
+        </p>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Input
+            label="Peso (g)"
+            name="defaultWeight"
+            type="number"
+            min={1}
+            defaultValue={category?.defaultWeight ?? 300}
+            hint="Em gramas"
+          />
+          <Input
+            label="Altura (cm)"
+            name="defaultHeight"
+            type="number"
+            min={1}
+            defaultValue={category?.defaultHeight ?? 10}
+            hint="Em centímetros"
+          />
+          <Input
+            label="Largura (cm)"
+            name="defaultWidth"
+            type="number"
+            min={1}
+            defaultValue={category?.defaultWidth ?? 15}
+            hint="Em centímetros"
+          />
+          <Input
+            label="Comprimento (cm)"
+            name="defaultLength"
+            type="number"
+            min={1}
+            defaultValue={category?.defaultLength ?? 20}
+            hint="Em centímetros"
+          />
+        </div>
+      </section>
 
       {error && (
         <div role="alert" className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm">

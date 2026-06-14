@@ -47,6 +47,10 @@ export async function createCategory(formData: FormData): Promise<ActionResult> 
   const description = (formData.get("description") as string)?.trim();
   const image = (formData.get("image") as string)?.trim();
   const order = parseInt((formData.get("order") as string) || "0", 10);
+  const defaultWeight = parseInt((formData.get("defaultWeight") as string) || "300", 10);
+  const defaultHeight = parseInt((formData.get("defaultHeight") as string) || "10", 10);
+  const defaultWidth = parseInt((formData.get("defaultWidth") as string) || "15", 10);
+  const defaultLength = parseInt((formData.get("defaultLength") as string) || "20", 10);
 
   // Validação
   if (!name) {
@@ -72,6 +76,10 @@ export async function createCategory(formData: FormData): Promise<ActionResult> 
         description: description || null,
         image: image || null,
         order,
+        defaultWeight,
+        defaultHeight,
+        defaultWidth,
+        defaultLength,
       },
     });
 
@@ -97,6 +105,10 @@ export async function updateCategory(
   const description = (formData.get("description") as string)?.trim();
   const image = (formData.get("image") as string)?.trim();
   const order = parseInt((formData.get("order") as string) || "0", 10);
+  const defaultWeight = parseInt((formData.get("defaultWeight") as string) || "300", 10);
+  const defaultHeight = parseInt((formData.get("defaultHeight") as string) || "10", 10);
+  const defaultWidth = parseInt((formData.get("defaultWidth") as string) || "15", 10);
+  const defaultLength = parseInt((formData.get("defaultLength") as string) || "20", 10);
 
   if (!name) {
     return { error: "Nome é obrigatório" };
@@ -125,6 +137,10 @@ export async function updateCategory(
         description: description || null,
         image: image || null,
         order,
+        defaultWeight,
+        defaultHeight,
+        defaultWidth,
+        defaultLength,
       },
     });
 

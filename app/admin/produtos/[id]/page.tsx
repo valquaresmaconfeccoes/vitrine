@@ -48,6 +48,10 @@ export default async function EditProductPage({
           categoryId: product.categoryId,
           stock: product.stock,
           badge: product.badge,
+          weight: product.weight,
+          height: product.height,
+          width: product.width,
+          length: product.length,
           active: product.active,
           featured: product.featured,
           images: product.images.map((img) => ({

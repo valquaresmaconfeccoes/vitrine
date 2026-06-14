@@ -59,16 +59,22 @@ export async function consultarCep(cep: string) {
   };
 }
 
+export interface PackageItem {
+  weight: number;   // gramas
+  height: number;   // cm
+  width: number;    // cm
+  length: number;   // cm
+  quantity: number;
+}
+
 /**
  * Calcula frete via Melhor Envio (API real).
+ * Aceita array de pacotes — um por item do carrinho.
  * Se falhar, cai no fallback com tabela por UF.
  */
 export async function calcularFrete(
   cepDestino: string,
-  peso: number,        // gramas
-  comprimento: number, // cm
-  altura: number,      // cm
-  largura: number      // cm
+  packages: PackageItem[]
 ): Promise<ShippingOption[]> {
   const cleanCep = cepDestino.replace(/\D/g, "");
 
@@ -97,23 +103,15 @@ export async function calcularFrete(
   // Tentar Melhor Envio
   if (MELHOR_ENVIO_TOKEN) {
     try {
-      const meOptions = await calcularFreteViaMelhorEnvio(
-        cleanCep,
-        peso,
-        comprimento,
-        altura,
-        largura
-      );
+      const meOptions = await calcularFreteViaMelhorEnvio(cleanCep, packages);
       options.push(...meOptions);
     } catch (err) {
       console.error("[MELHOR_ENVIO_ERROR]", err);
-      // Fallback: tabela por UF
-      const fallbackOptions = await calcularFretePorTabela(cleanCep, peso);
+      const fallbackOptions = await calcularFretePorTabela(cleanCep, packages);
       options.push(...fallbackOptions);
     }
   } else {
-    // Sem token: usar tabela
-    const fallbackOptions = await calcularFretePorTabela(cleanCep, peso);
+    const fallbackOptions = await calcularFretePorTabela(cleanCep, packages);
     options.push(...fallbackOptions);
   }
 
@@ -126,32 +124,33 @@ export async function calcularFrete(
 }
 
 /**
- * Cotação real via API do Melhor Envio
+ * Cotação real via API do Melhor Envio — múltiplos pacotes
  */
 async function calcularFreteViaMelhorEnvio(
   cepDestino: string,
-  peso: number,      // gramas
-  comprimento: number,
-  altura: number,
-  largura: number
+  packages: PackageItem[]
 ): Promise<ShippingOption[]> {
-  // Dimensões mínimas do Melhor Envio
-  const safeHeight = Math.max(altura || 4, 4);    // mín 2cm, usamos 4 por segurança
-  const safeWidth = Math.max(largura || 15, 11);
-  const safeLength = Math.max(comprimento || 20, 16);
-  const safeWeight = Math.max((peso || 300) / 1000, 0.3); // kg, mín 0.3
+  // Montar array de pacotes para o Melhor Envio
+  // Cada item do carrinho vira um pacote (quantidade expandida)
+  const mePackages = packages.flatMap((pkg) => {
+    const safeHeight = Math.max(pkg.height || 4, 4);
+    const safeWidth = Math.max(pkg.width || 15, 11);
+    const safeLength = Math.max(pkg.length || 20, 16);
+    const safeWeight = Math.max((pkg.weight || 300) / 1000, 0.3);
+
+    // Um pacote por unidade
+    return Array.from({ length: pkg.quantity || 1 }, () => ({
+      height: safeHeight,
+      width: safeWidth,
+      length: safeLength,
+      weight: safeWeight,
+    }));
+  });
 
   const body = {
     from: { postal_code: CEP_ORIGEM },
     to: { postal_code: cepDestino },
-    packages: [
-      {
-        height: safeHeight,
-        width: safeWidth,
-        length: safeLength,
-        weight: safeWeight,
-      },
-    ],
+    packages: mePackages,
   };
 
   const res = await fetch(`${ME_BASE_URL}/api/v2/me/shipment/calculate`, {
@@ -253,7 +252,7 @@ const TABELA_PADRAO = { pac: 40, pacDias: 12, sedex: 68, sedexDias: 7 };
 
 async function calcularFretePorTabela(
   cepDestino: string,
-  peso: number
+  packages: PackageItem[]
 ): Promise<ShippingOption[]> {
   let uf = "";
   try {
@@ -262,7 +261,10 @@ async function calcularFretePorTabela(
   } catch { /* sem UF, usa padrão */ }
 
   const tabela = TABELA_FRETE[uf] || TABELA_PADRAO;
-  const pesoKg = Math.max(peso / 1000, 0.3);
+
+  // Soma peso total de todos os pacotes
+  const totalWeight = packages.reduce((sum, p) => sum + (p.weight || 300) * (p.quantity || 1), 0);
+  const pesoKg = Math.max(totalWeight / 1000, 0.3);
   const pesoExtra = Math.max(0, Math.ceil(pesoKg - 1));
   const adicionalPeso = pesoExtra * 5;
 

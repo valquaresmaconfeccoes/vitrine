@@ -39,6 +39,10 @@ export default async function EditCategoryPage({
           description: category.description,
           image: category.image,
           order: category.order,
+          defaultWeight: category.defaultWeight,
+          defaultHeight: category.defaultHeight,
+          defaultWidth: category.defaultWidth,
+          defaultLength: category.defaultLength,
         }}
       />
     </div>

@@ -8,16 +8,20 @@ datasource db {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?
-  image       String?
-  order       Int       @default(0)
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  id              String    @id @default(cuid())
+  name            String    @unique
+  slug            String    @unique
+  description     String?
+  image           String?
+  order           Int       @default(0)
+  active          Boolean   @default(true)
+  defaultWeight   Int       @default(300)
+  defaultHeight   Int       @default(10)
+  defaultWidth    Int       @default(15)
+  defaultLength   Int       @default(20)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  products        Product[]
 
   @@index([slug])
   @@index([active, order])

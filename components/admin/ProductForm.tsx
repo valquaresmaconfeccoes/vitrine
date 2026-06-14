@@ -29,6 +29,10 @@ interface ProductFormProps {
     categoryId: string;
     stock: number | null;
     badge: string;
+    weight: number;
+    height: number;
+    width: number;
+    length: number;
     active: boolean;
     featured: boolean;
     images: { url: string; order: number }[];
@@ -194,6 +198,52 @@ export default function ProductForm({ categories, product }: ProductFormProps) {
             description="Produtos em destaque aparecem na seção principal da Home."
             name="featured"
             defaultChecked={product?.featured ?? false}
+          />
+        </div>
+      </section>
+
+      {/* ============ SEÇÃO: DIMENSÕES E PESO ============ */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">
+          📦 Dimensões e Peso (para frete)
+        </h2>
+        <p className="text-sm text-warm-gray">
+          Informe o peso e dimensões da embalagem deste produto.
+          Deixe <strong>0</strong> para usar os valores padrão da categoria.
+        </p>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Input
+            label="Peso (g)"
+            name="weight"
+            type="number"
+            min={0}
+            defaultValue={product?.weight ?? 0}
+            hint="Em gramas (0 = herda da categoria)"
+          />
+          <Input
+            label="Altura (cm)"
+            name="height"
+            type="number"
+            min={0}
+            defaultValue={product?.height ?? 0}
+            hint="Em cm (0 = herda)"
+          />
+          <Input
+            label="Largura (cm)"
+            name="width"
+            type="number"
+            min={0}
+            defaultValue={product?.width ?? 0}
+            hint="Em cm (0 = herda)"
+          />
+          <Input
+            label="Comprimento (cm)"
+            name="length"
+            type="number"
+            min={0}
+            defaultValue={product?.length ?? 0}
+            hint="Em cm (0 = herda)"
           />
         </div>
       </section>
