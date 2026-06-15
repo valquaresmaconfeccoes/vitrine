@@ -165,15 +165,28 @@ async function calcularFreteViaMelhorEnvio(
     signal: AbortSignal.timeout(10000),
   });
 
+  const rawText = await res.text();
+
+  // Log completo para debug — ver nos logs do Railway
+  console.log(`[ME_API] Status: ${res.status} | URL: ${ME_BASE_URL}`);
+  console.log(`[ME_API] Response: ${rawText.slice(0, 500)}`);
+
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Melhor Envio HTTP ${res.status}: ${text}`);
+    throw new Error(`Melhor Envio HTTP ${res.status}: ${rawText.slice(0, 200)}`);
   }
 
-  const data = await res.json();
+  let data: unknown;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(`Melhor Envio retornou JSON inválido: ${rawText.slice(0, 100)}`);
+  }
 
+  // A API pode retornar objeto de erro em vez de array
   if (!Array.isArray(data)) {
-    throw new Error("Resposta inesperada do Melhor Envio");
+    const errObj = data as Record<string, unknown>;
+    const errMsg = errObj?.message || errObj?.error || JSON.stringify(data).slice(0, 200);
+    throw new Error(`Melhor Envio retornou erro: ${errMsg}`);
   }
 
   const options: ShippingOption[] = [];
