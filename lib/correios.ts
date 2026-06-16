@@ -206,14 +206,25 @@ async function calcularFreteViaMelhorEnvio(
     if (isNaN(price) || price <= 0) continue;
 
     const deliveryDays = parseInt(item.delivery_time, 10) || 10;
+
+    // Montar nome amigável: "Serviço — Transportadora"
     const companyName = item.company?.name || "";
     const serviceName = item.name || "";
 
-    // Montar nome amigável
-    let friendlyName = serviceName;
-    if (companyName && !serviceName.includes(companyName)) {
-      friendlyName = `${serviceName} — ${companyName}`;
-    }
+    // Remover pontos do início do nome do serviço (ex: ".Package" → "Package")
+    const cleanService = serviceName.replace(/^\.+/, "").trim();
+
+    // Normalizar nomes conhecidos
+    const normalizedCompany = companyName
+      .replace("Correios", "Correios")
+      .replace("Jadlog", "Jadlog")
+      .replace("JeT", "J&T Express")
+      .replace("Loggi", "Loggi")
+      .trim();
+
+    const friendlyName = normalizedCompany
+      ? `${cleanService} — ${normalizedCompany}`
+      : cleanService;
 
     // Service ID para identificação única
     const serviceId = item.id?.toString() || `ME_${serviceName.replace(/\s/g, "_")}`;
