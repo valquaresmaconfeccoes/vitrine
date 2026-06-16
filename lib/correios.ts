@@ -130,28 +130,31 @@ async function calcularFreteViaMelhorEnvio(
   cepDestino: string,
   packages: PackageItem[]
 ): Promise<ShippingOption[]> {
-  // Montar array de pacotes para o Melhor Envio
-  // Cada item do carrinho vira um pacote (quantidade expandida)
-  const mePackages = packages.flatMap((pkg) => {
-    const safeHeight = Math.max(pkg.height || 4, 4);
-    const safeWidth = Math.max(pkg.width || 15, 11);
-    const safeLength = Math.max(pkg.length || 20, 16);
-    const safeWeight = Math.max((pkg.weight || 300) / 1000, 0.3);
-
-    // Um pacote por unidade
-    return Array.from({ length: pkg.quantity || 1 }, () => ({
-      height: safeHeight,
-      width: safeWidth,
-      length: safeLength,
-      weight: safeWeight,
-    }));
-  });
+  // Montar lista de produtos para o Melhor Envio
+  // Formato: products[] com id, width, height, length, weight, quantity, insurance_value
+  const meProducts = packages.map((pkg, index) => ({
+    id: String(index + 1),
+    width: Math.max(pkg.width || 15, 11),
+    height: Math.max(pkg.height || 4, 2),
+    length: Math.max(pkg.length || 20, 16),
+    weight: Math.max((pkg.weight || 300) / 1000, 0.1),
+    quantity: pkg.quantity || 1,
+    insurance_value: 0,
+  }));
 
   const body = {
     from: { postal_code: CEP_ORIGEM },
     to: { postal_code: cepDestino },
-    packages: mePackages,
+    products: meProducts,
+    options: {
+      receipt: false,
+      own_hand: false,
+      collect: false,
+      insurance_value: 0,
+    },
   };
+
+  console.log(`[ME_API] Payload: ${JSON.stringify(body)}`);
 
   const res = await fetch(`${ME_BASE_URL}/api/v2/me/shipment/calculate`, {
     method: "POST",
@@ -183,6 +186,10 @@ async function calcularFreteViaMelhorEnvio(
   }
 
   // A API pode retornar objeto de erro em vez de array
+  if (data === null || data === undefined) {
+    throw new Error("Melhor Envio retornou null — verifique se há transportadoras ativas no painel");
+  }
+
   if (!Array.isArray(data)) {
     const errObj = data as Record<string, unknown>;
     const errMsg = errObj?.message || errObj?.error || JSON.stringify(data).slice(0, 200);
