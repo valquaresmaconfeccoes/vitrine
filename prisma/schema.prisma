@@ -91,21 +91,23 @@ model Variant {
 }
 
 model HeroSlide {
-  id           String           @id @default(cuid())
-  image        String
-  title        String?
-  subtitle     String?
-  buttonText   String?
-  buttonUrl    String?
-  buttonTarget HeroButtonTarget @default(SELF)
-  textColor    HeroTextColor    @default(LIGHT)
-  duration     Int              @default(5)
-  startsAt     DateTime?
-  endsAt       DateTime?
-  priority     Int              @default(0)
-  active       Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id              String              @id @default(cuid())
+  image           String
+  imageMobile     String?
+  title           String?
+  subtitle        String?
+  buttonText      String?
+  buttonUrl       String?
+  buttonTarget    HeroButtonTarget    @default(SELF)
+  textColor       HeroTextColor       @default(LIGHT)
+  contentPosition HeroContentPosition @default(BOTTOM_CENTER)
+  duration        Int                 @default(5)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  priority        Int                 @default(0)
+  active          Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([active, priority])
   @@index([startsAt, endsAt])
@@ -248,6 +250,18 @@ enum HeroButtonTarget {
 enum HeroTextColor {
   LIGHT
   DARK
+}
+
+enum HeroContentPosition {
+  TOP_LEFT
+  TOP_CENTER
+  TOP_RIGHT
+  CENTER_LEFT
+  CENTER_CENTER
+  CENTER_RIGHT
+  BOTTOM_LEFT
+  BOTTOM_CENTER
+  BOTTOM_RIGHT
 }
 
 enum Role {

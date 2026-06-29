@@ -2,19 +2,26 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Input, Textarea, Select, Checkbox, Button } from "@/components/admin/FormFields";
+import { Input, Textarea, Select, Button } from "@/components/admin/FormFields";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { createHeroSlide, updateHeroSlide } from "@/app/admin/hero/actions";
+
+type ContentPosition =
+  | "TOP_LEFT" | "TOP_CENTER" | "TOP_RIGHT"
+  | "CENTER_LEFT" | "CENTER_CENTER" | "CENTER_RIGHT"
+  | "BOTTOM_LEFT" | "BOTTOM_CENTER" | "BOTTOM_RIGHT";
 
 type Slide = {
   id: string;
   image: string;
+  imageMobile: string | null;
   title: string | null;
   subtitle: string | null;
   buttonText: string | null;
   buttonUrl: string | null;
   buttonTarget: "SELF" | "BLANK";
   textColor: "LIGHT" | "DARK";
+  contentPosition: ContentPosition;
   duration: number;
   priority: number;
   startsAt: Date | null;
@@ -25,6 +32,18 @@ type Slide = {
 interface HeroSlideFormProps {
   slide?: Slide;
 }
+
+const POSITION_OPTIONS = [
+  { value: "TOP_LEFT", label: "Topo · Esquerda" },
+  { value: "TOP_CENTER", label: "Topo · Centro" },
+  { value: "TOP_RIGHT", label: "Topo · Direita" },
+  { value: "CENTER_LEFT", label: "Meio · Esquerda" },
+  { value: "CENTER_CENTER", label: "Meio · Centro" },
+  { value: "CENTER_RIGHT", label: "Meio · Direita" },
+  { value: "BOTTOM_LEFT", label: "Base · Esquerda" },
+  { value: "BOTTOM_CENTER", label: "Base · Centro (padrão)" },
+  { value: "BOTTOM_RIGHT", label: "Base · Direita" },
+];
 
 function toDatetimeLocal(date: Date | null): string {
   if (!date) return "";
@@ -38,6 +57,7 @@ export default function HeroSlideForm({ slide }: HeroSlideFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [image, setImage] = useState<string>(slide?.image ?? "");
+  const [imageMobile, setImageMobile] = useState<string>(slide?.imageMobile ?? "");
   const isEditing = !!slide;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -45,6 +65,7 @@ export default function HeroSlideForm({ slide }: HeroSlideFormProps) {
     setError(null);
     const formData = new FormData(e.currentTarget);
     formData.set("image", image);
+    formData.set("imageMobile", imageMobile);
 
     startTransition(async () => {
       const result = isEditing
@@ -59,17 +80,30 @@ export default function HeroSlideForm({ slide }: HeroSlideFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl">
-      {/* Imagem */}
+      {/* Imagens */}
       <section className="space-y-4">
-        <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">Imagem do Banner</h2>
-        <div className="max-w-sm">
+        <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">Imagens do Banner</h2>
+        <p className="text-sm text-warm-gray -mt-2">
+          O site mostra a imagem <strong>desktop</strong> em telas grandes e a imagem
+          <strong> mobile</strong> no celular. Se não enviar a versão mobile, o celular
+          usa automaticamente a imagem desktop.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-6">
           <ImageUpload
-            label="Imagem (obrigatória)"
+            label="Imagem desktop (obrigatória)"
             value={image}
             onChange={setImage}
             onRemove={() => setImage("")}
             aspectRatio="landscape"
-            hint="Prefira imagens horizontais, mínimo 1200x600px."
+            hint="Horizontal/paisagem. Ideal: 1920x800px (ou proporção parecida)."
+          />
+          <ImageUpload
+            label="Imagem mobile (opcional)"
+            value={imageMobile}
+            onChange={setImageMobile}
+            onRemove={() => setImageMobile("")}
+            aspectRatio="portrait"
+            hint="Vertical/retrato. Ideal: 800x1200px. Deixe vazio para usar a imagem desktop."
           />
         </div>
       </section>
@@ -77,6 +111,10 @@ export default function HeroSlideForm({ slide }: HeroSlideFormProps) {
       {/* Conteúdo */}
       <section className="space-y-6">
         <h2 className="font-serif text-xl text-noir border-b border-noir/10 pb-2">Conteúdo Sobreposto</h2>
+        <p className="text-sm text-warm-gray -mt-4">
+          Se a sua arte já tem todo o texto embutido na imagem, pode deixar os campos
+          abaixo em branco — só o botão será exibido por cima.
+        </p>
         <div className="grid sm:grid-cols-2 gap-6">
           <Input label="Título (opcional)" name="title" defaultValue={slide?.title ?? ""} placeholder="Ex: Coleção Inverno 2026" hint="Aparece em destaque sobre a imagem." />
           <Select
@@ -90,6 +128,12 @@ export default function HeroSlideForm({ slide }: HeroSlideFormProps) {
           />
         </div>
         <Textarea label="Subtítulo (opcional)" name="subtitle" rows={2} defaultValue={slide?.subtitle ?? ""} placeholder="Uma frase curta e impactante" />
+        <Select
+          label="Posição do texto e do botão"
+          name="contentPosition"
+          defaultValue={slide?.contentPosition ?? "BOTTOM_CENTER"}
+          options={POSITION_OPTIONS}
+        />
       </section>
 
       {/* CTA */}
