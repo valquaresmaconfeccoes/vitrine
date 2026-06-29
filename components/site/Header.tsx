@@ -18,8 +18,25 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { customer, cartCount } = useCart();
 
+  // Header compacto ao rolar — com histerese para evitar flickering.
+  //
+  // Usamos DOIS limiares (liga em 80px, desliga abaixo de 20px) em vez de um
+  // único ponto. Como o header encolhe quando ativo, um limiar único cria um
+  // equilíbrio instável: encolher reduz o scrollY, que desativa, que cresce de
+  // novo... centenas de vezes por segundo. A "zona morta" entre 20 e 80px
+  // quebra esse loop. Além disso, só atualizamos o estado quando ele realmente
+  // muda, evitando re-renders a cada frame de scroll.
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      const y = window.scrollY;
+      setIsScrolled((prev) => {
+        if (!prev && y > 80) return true;
+        if (prev && y < 20) return false;
+        return prev;
+      });
+    };
+
+    handleScroll(); // sincroniza no mount (ex.: reload já rolado)
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -36,7 +53,7 @@ export default function Header() {
           sticky top-0 z-40 w-full
           bg-noir/95 backdrop-blur-sm
           border-b border-gold/20
-          transition-all duration-300
+          transition-[padding] duration-300
           ${isScrolled ? "py-2" : "py-3 sm:py-4"}
         `}
       >
