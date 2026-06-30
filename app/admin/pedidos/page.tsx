@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { expireStalePendingOrders } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,11 @@ export default async function AdminPedidosPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const statusFilter = params.status || "";
   const searchTerm = params.q || "";
+
+  // Limpeza sob demanda: cancela pedidos pendentes vencidos (>30min sem
+  // pagamento) sempre que o painel é aberto. Garante que a lista não acumule
+  // pedidos "fantasma" aguardando um pagamento que nunca virá.
+  await expireStalePendingOrders();
 
   // ====== MÉTRICAS ======
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);

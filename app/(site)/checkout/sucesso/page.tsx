@@ -11,9 +11,9 @@ function SuccessContent() {
 
   const [copied, setCopied] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pixCode, setPixCode] = useState("");
-  const [ticketUrl, setTicketUrl] = useState("");
 
   const fetchOrderData = useCallback(async () => {
     if (!pedido) return;
@@ -24,11 +24,12 @@ function SuccessContent() {
 
       if (data.paid) {
         setPaid(true);
+      } else if (data.status === "CANCELLED") {
+        setExpired(true);
       }
 
       if (data.pixData) {
         if (data.pixData.qrCode) setPixCode(data.pixData.qrCode);
-        if (data.pixData.ticketUrl) setTicketUrl(data.pixData.ticketUrl);
       }
 
       setLoading(false);
@@ -37,15 +38,15 @@ function SuccessContent() {
     }
   }, [pedido]);
 
-  // Fetch inicial + polling a cada 5s
+  // Fetch inicial + polling a cada 5s (para quando pagar ou expirar)
   useEffect(() => {
     fetchOrderData();
 
-    if (metodo === "pix") {
+    if (metodo === "pix" && !paid && !expired) {
       const interval = setInterval(fetchOrderData, 5000);
       return () => clearInterval(interval);
     }
-  }, [fetchOrderData, metodo]);
+  }, [fetchOrderData, metodo, paid, expired]);
 
   function copyPix() {
     navigator.clipboard.writeText(pixCode);
@@ -83,9 +84,40 @@ function SuccessContent() {
             Pedido <strong>{pedido}</strong> recebido. Em breve entraremos em contato
             para combinar a entrega.
           </p>
-          <Link href="/produtos" className="block py-3 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800">
-            Continuar comprando
-          </Link>
+          <div className="space-y-3">
+            <Link href="/minha-conta/pedidos" className="block py-3 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800">
+              Meus pedidos
+            </Link>
+            <Link href="/produtos" className="block py-3 border border-neutral-300 text-neutral-800 rounded-lg font-medium hover:bg-neutral-100">
+              Continuar comprando
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // ============ PEDIDO EXPIRADO / CANCELADO ============
+  if (expired) {
+    return (
+      <section className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center">
+          <div className="text-6xl mb-4">⌛</div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-serif text-neutral-800 mb-2">
+            Pedido cancelado
+          </h1>
+          <p className="text-neutral-600 mb-6">
+            O prazo de pagamento do pedido <strong>{pedido}</strong> expirou e ele foi
+            cancelado. Mas não se preocupe: você pode fazer um novo pedido a qualquer momento.
+          </p>
+          <div className="space-y-3">
+            <Link href="/produtos" className="block py-3 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800">
+              Comprar novamente
+            </Link>
+            <Link href="/minha-conta/pedidos" className="block py-3 border border-neutral-300 text-neutral-800 rounded-lg font-medium hover:bg-neutral-100">
+              Meus pedidos
+            </Link>
+          </div>
         </div>
       </section>
     );
@@ -157,20 +189,6 @@ function SuccessContent() {
               >
                 {copied ? "✓ Copiado!" : "Copiar código Pix"}
               </button>
-            </div>
-          )}
-
-          {/* Link alternativo do MP */}
-          {ticketUrl && (
-            <div className="mb-4 text-center">
-              <a
-                href={ticketUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-amber-600 underline hover:text-amber-700"
-              >
-                Ou pague pelo site do Mercado Pago →
-              </a>
             </div>
           )}
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCustomerSession } from "@/lib/customer-auth";
 import { prisma } from "@/lib/db";
+import { expireStalePendingOrders } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,10 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 export default async function MeusPedidosPage() {
   const session = await getCustomerSession();
   if (!session) redirect("/conta/login");
+
+  // Cancela pedidos pendentes vencidos antes de listar, para o cliente ver o
+  // status correto (cancelado) em vez de um "aguardando pagamento" eterno.
+  await expireStalePendingOrders();
 
   const orders = await prisma.order.findMany({
     where: { customerId: session.id },
