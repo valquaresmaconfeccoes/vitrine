@@ -36,20 +36,15 @@ export default function AddToCartButton({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, variantId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Erro ao adicionar");
-        setLoading(false);
+      // Fonte ÚNICA da operação: addToCart faz o POST e atualiza o contador.
+      // Antes havia também um fetch direto aqui, causando DOIS POSTs por clique
+      // e duplicando a quantidade no carrinho.
+      const result = await addToCart(productId, variantId);
+      if (!result.ok) {
+        setError(result.error || "Erro ao adicionar");
         setTimeout(() => setError(""), 4000);
         return;
       }
-      // Atualiza contagem do header
-      await addToCart(productId, variantId);
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
     } catch {

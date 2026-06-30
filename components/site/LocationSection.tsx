@@ -38,9 +38,9 @@ export default function LocationSection() {
                 Endereço
               </p>
               <address className="not-italic text-sm sm:text-base text-noir leading-relaxed">
-                Rua Exemplo, 123<br />
-                Bairro — Sua Cidade, PA<br />
-                CEP: 00000-000
+                Passagem Pinheiro, nº 323<br />
+                Terra Firme — Belém, PA<br />
+                CEP: 66079-720
               </address>
             </div>
 
@@ -50,7 +50,7 @@ export default function LocationSection() {
               </p>
               <ul className="text-sm sm:text-base text-noir space-y-1">
                 <li>Segunda a Sexta: 9h às 18h</li>
-                <li>Sábado: 9h às 13h</li>
+                <li>Sábado: 9h às 14h</li>
                 <li className="text-warm-gray">Domingo: Fechado</li>
               </ul>
             </div>
@@ -78,7 +78,7 @@ export default function LocationSection() {
                 WhatsApp
               </a>
               <a
-                href="https://maps.google.com/?q=Val+Quaresma"
+                href="https://www.google.com/maps/search/?api=1&query=-1.4626843272657697,-48.45346344962605"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-outline text-center text-xs py-3 border-noir text-noir hover:bg-noir hover:text-white"
@@ -91,7 +91,7 @@ export default function LocationSection() {
           {/* Mapa */}
           <div className="relative min-h-[280px] sm:min-h-[350px] lg:min-h-[450px] bg-noir/5">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3982.123!2d-48.504!3d-1.456!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMcKwMjcnMTkuOSJTIDQ4wrAzMCcxNS4yIlc!5e0!3m2!1spt-BR!2sbr!4v1234567890"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1993.7!2d-48.45346344962605!3d-1.4626843272657697!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMcKwMjcnNDUuNyJTIDQ4wrAyNycxMi41Ilc!5e0!3m2!1spt-BR!2sbr"
               width="100%"
               height="100%"
               style={{ border: 0 }}

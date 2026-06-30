@@ -8,13 +8,18 @@ interface CustomerData {
   name: string;
 }
 
+interface AddToCartResult {
+  ok: boolean;
+  error?: string;
+}
+
 interface CartContextType {
   customer: CustomerData | null;
   cartCount: number;
   loading: boolean;
   refreshCart: () => Promise<void>;
   refreshSession: () => Promise<void>;
-  addToCart: (productId: string, variantId?: string) => Promise<boolean>;
+  addToCart: (productId: string, variantId?: string) => Promise<AddToCartResult>;
   logout: () => Promise<void>;
 }
 
@@ -24,7 +29,7 @@ const CartContext = createContext<CartContextType>({
   loading: true,
   refreshCart: async () => {},
   refreshSession: async () => {},
-  addToCart: async () => false,
+  addToCart: async () => ({ ok: false }),
   logout: async () => {},
 });
 
@@ -63,8 +68,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [customer]);
 
   const addToCart = useCallback(
-    async (productId: string, variantId?: string) => {
-      if (!customer) return false;
+    async (productId: string, variantId?: string): Promise<AddToCartResult> => {
+      if (!customer) return { ok: false, error: "Não autenticado" };
       try {
         const res = await fetch("/api/cart", {
           method: "POST",
@@ -73,11 +78,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         });
         if (res.ok) {
           setCartCount((c) => c + 1);
-          return true;
+          return { ok: true };
         }
-        return false;
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: data.error || "Erro ao adicionar" };
       } catch {
-        return false;
+        return { ok: false, error: "Erro de conexão" };
       }
     },
     [customer]
